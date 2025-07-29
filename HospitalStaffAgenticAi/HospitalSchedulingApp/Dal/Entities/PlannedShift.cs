@@ -1,4 +1,4 @@
-﻿using HospitalSchedulingApp.Common;
+﻿using HospitalSchedulingApp.Common.Enums;
 
 namespace HospitalSchedulingApp.Dal.Entities
 {

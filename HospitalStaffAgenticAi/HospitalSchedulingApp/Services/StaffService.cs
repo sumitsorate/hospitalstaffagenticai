@@ -1,4 +1,4 @@
-﻿using HospitalSchedulingApp.Common;
+﻿using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dal.Repositories;
 using HospitalSchedulingApp.Dtos.Staff;

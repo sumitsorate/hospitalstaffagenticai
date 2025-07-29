@@ -1,4 +1,4 @@
-﻿namespace HospitalSchedulingApp.Common
+﻿namespace HospitalSchedulingApp.Common.Enums
 {
     public enum ShiftTypes
     {
