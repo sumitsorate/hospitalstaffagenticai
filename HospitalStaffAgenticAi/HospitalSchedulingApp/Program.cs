@@ -107,6 +107,8 @@ builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IShiftTypeService, ShiftTypeService>();
 builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
 builder.Services.AddScoped<ILeaveTypeService, LeaveTypeService>();
+builder.Services.AddScoped<IUserContextService, UserContextService>();
+builder.Services.AddScoped<IAgentConversationService, AgentConversationService>();
 
 // Tool Handlers
 builder.Services.AddScoped<IToolHandler, FilterPlannedShiftsToolHandler>();
@@ -121,6 +123,7 @@ builder.Services.AddScoped<IToolHandler, ResolveShiftStatusToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveShiftTypeToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveLeaveTypeToolHandler>();
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

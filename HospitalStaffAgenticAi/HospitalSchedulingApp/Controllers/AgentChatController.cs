@@ -18,14 +18,17 @@ namespace HospitalSchedulingApp.Controllers
     public class AgentChatController : ControllerBase
     {
         private readonly IAgentService _agentService;
+        private readonly IAgentConversationService _agentConversationService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AuthController"/> class.
         /// </summary>
         /// <param name="agentService">Service to handle agent communication.</param>
-        public AgentChatController(IAgentService agentService) 
+        public AgentChatController(IAgentService agentService,
+            IAgentConversationService agentConversationService) 
         {
             _agentService = agentService;
+            _agentConversationService = agentConversationService;
         }
 
         /// <summary>
@@ -36,7 +39,12 @@ namespace HospitalSchedulingApp.Controllers
         [HttpPost("ask")]
         public async Task<IActionResult> AskAgent([FromBody] UserMessageRequestDto request)
         {
-            var response = await _agentService.GetAgentResponseAsync(request.ThreadId, MessageRole.User, request.Message);
+            var loggedInUserThread = await _agentConversationService.FetchThreadIdForLoggedInUser();
+
+            if (string.IsNullOrEmpty(loggedInUserThread))
+                return BadRequest("Agent thread not found for the user.");
+
+            var response = await _agentService.GetAgentResponseAsync(loggedInUserThread, MessageRole.User, request.Message);
 
             if (response is MessageTextContent textResponse)
             {
@@ -45,5 +53,6 @@ namespace HospitalSchedulingApp.Controllers
 
             return BadRequest("No valid response from agent.");
         }
+
     }
 }

@@ -2,6 +2,16 @@
 
 Fetching Shift Schedule - Working
 Find Available Staff Datewise - Working
+Single Thread Per user implementation
 Leave Request
  - Submit Leave Request
  - Cancel Leave Request Working
+
+Next
+ - View Pending,Approve Rejected Leave Request
+ - Approve, Reject Leave Request
+
+ When Leave Request is approved find impacted shift
+ When Leave Request is approved then change the status
+ of leave request to Vacant
+ Assign shift to Searched Available Staff

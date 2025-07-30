@@ -61,8 +61,6 @@ namespace HospitalSchedulingApp.Agent.Services
         /// </summary>
         public async Task<MessageContent?> GetAgentResponseAsync(string threadId, MessageRole role, string message)
         {
-            var thread = CreateThread();
-            threadId =  thread.Id;
 
             try
             {
@@ -145,7 +143,16 @@ namespace HospitalSchedulingApp.Agent.Services
                 return null;
             }
         }
-
-
     }
 }
+
+
+//var threads =  _client.Threads.GetThreads();
+//foreach (var item in threads)
+//{
+//    await _client.Threads.DeleteThreadAsync(item.Id);
+//}
+
+// _logger.LogInformation($"Thread {thread.Id} deleted.");
+//var thread = CreateThread();
+//threadId =  thread.Id;

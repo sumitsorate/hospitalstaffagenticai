@@ -4,6 +4,7 @@ using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dal.Repositories;
 using HospitalSchedulingApp.Dtos.Auth;
 using HospitalSchedulingApp.Services.AuthServices.Interfaces;
+using HospitalSchedulingApp.Services.Interfaces;
 
 namespace HospitalSchedulingApp.Services.AuthServices
 {
@@ -19,6 +20,7 @@ namespace HospitalSchedulingApp.Services.AuthServices
         private readonly IRepository<Role> _roleRepo;
         private readonly IAgentService _agentService;
         private readonly IJwtTokenService _jwtTokenService;
+        private readonly IAgentConversationService _agentConversationService;
 
         public AuthService(
             IRepository<UserCredential> userCredential,
@@ -26,7 +28,8 @@ namespace HospitalSchedulingApp.Services.AuthServices
             IRepository<Role> roleRepo,
             IAgentService agentService,
             IRepository<AgentConversations> agentConversations,
-            IJwtTokenService jwtTokenService)
+            IJwtTokenService jwtTokenService,
+            IAgentConversationService agentConversationService)
         {
             _userCredentialRepo = userCredential;
             _staffRepo = staffRepo;
@@ -34,6 +37,7 @@ namespace HospitalSchedulingApp.Services.AuthServices
             _agentService = agentService;
             _agentConversations = agentConversations;
             _jwtTokenService = jwtTokenService;
+            _agentConversationService = agentConversationService;
         }
 
         /// <summary>
@@ -51,36 +55,27 @@ namespace HospitalSchedulingApp.Services.AuthServices
                 throw new UnauthorizedAccessException("Invalid username or password.");
             }
 
-            var conversations = await _agentConversations.GetAllAsync();
+            // Fetch the existing thread id 
 
-            string threadId = "";
-            var existingThread = conversations
-                .FirstOrDefault(x => x.UserId == loginInfo.StaffId.ToString());
+            var existingUserThreadId = await _agentConversationService
+                .FetchThreadIdForLoggedInUser();
 
-            
-
-            if (existingThread?.ThreadId != null)
+            if (existingUserThreadId != null)
             {
-                threadId = existingThread.ThreadId ?? "";
-                loginInfo.ThreadId = threadId;
+                loginInfo.ThreadId = existingUserThreadId;
             }
             else
             {
                 var thread = _agentService.CreateThread(); // Consider making this async
-
-                threadId = thread.Id;
-                await _agentConversations.AddAsync(new AgentConversations
+                loginInfo.ThreadId = thread.Id;
+                await _agentConversationService.AddAgentConversation(new AgentConversations
                 {
                     UserId = loginInfo.StaffId.ToString(),
-                    ThreadId = threadId,
+                    ThreadId = thread.Id,
                     CreatedAt = DateTime.UtcNow
                 });
 
-                await _agentConversations.SaveAsync();
-            
             }
-            if(threadId != null)
-                loginInfo.ThreadId = threadId;
 
             return loginInfo;
         }
