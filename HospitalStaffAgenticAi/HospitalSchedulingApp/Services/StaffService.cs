@@ -75,7 +75,6 @@ namespace HospitalSchedulingApp.Services
             return filtered;
         }
 
-     
 
         public async Task<List<AvailableStaffPerDateDto?>> SearchAvailableStaffAsync(AvailableStaffFilterDto filter)
         {
@@ -84,13 +83,6 @@ namespace HospitalSchedulingApp.Services
             var leaveRequests = await _leaveRepo.GetAllAsync();
             var availabilities = await _availabilityRepo.GetAllAsync();
             var departments = await _departmentRepo.GetAllAsync();
-
-            ShiftTypes? resolvedShiftTypeId = null;
-            if (!string.IsNullOrWhiteSpace(filter.ShiftType))
-            {
-                var shiftType = await _shiftTypeService.FetchShiftInfoByShiftName(filter.ShiftType);
-                resolvedShiftTypeId = (ShiftTypes)shiftType.ShiftTypeId;
-            }
 
             var departmentMap = departments.ToDictionary(d => d.DepartmentId, d => d.DepartmentName);
 
@@ -108,22 +100,29 @@ namespace HospitalSchedulingApp.Services
                     .Where(s => s.IsActive)
                     .Where(s =>
                     {
+                        // Filter by department if specified
+                        if (filter.DepartmentId.HasValue && s.StaffDepartmentId != filter.DepartmentId.Value)
+                            return false;
+
+                        // Check availability
                         var isAvailable = !availabilities.Any(a =>
-                                            a.StaffId == s.StaffId &&
-                                            a.AvailableDate == shiftDate &&
-                                            !a.IsAvailable);
+                            a.StaffId == s.StaffId &&
+                            a.AvailableDate == shiftDate &&
+                            !a.IsAvailable);
 
+                        // Check leave
                         var isOnLeave = leaveRequests.Any(l =>
-                                            l.StaffId == s.StaffId &&
-                                            l.LeaveStatusId == LeaveRequestStatuses.Approved &&
-                                            shiftDate >= l.LeaveStart &&
-                                            shiftDate <= l.LeaveEnd);
+                            l.StaffId == s.StaffId &&
+                            l.LeaveStatusId == LeaveRequestStatuses.Approved &&
+                            shiftDate >= l.LeaveStart &&
+                            shiftDate <= l.LeaveEnd);
 
-                        var isOccupied = resolvedShiftTypeId.HasValue &&
+                        // Check shift conflict (only if shift type specified)
+                        var isOccupied = filter.ShiftTypeId.HasValue &&
                                          shifts.Any(ps =>
                                              ps.AssignedStaffId == s.StaffId &&
                                              ps.ShiftDate == shiftDate &&
-                                             ps.ShiftTypeId == resolvedShiftTypeId.Value);
+                                             ps.ShiftTypeId ==(ShiftTypes) filter.ShiftTypeId.Value);
 
                         return isAvailable && !isOnLeave && !isOccupied;
                     })

@@ -36,14 +36,13 @@ public class SearchAvailableStaffToolHandler : IToolHandler
             {
                 StartDate = DateOnly.Parse(startDateProp.GetString()!),
                 EndDate = DateOnly.Parse(endDateProp.GetString()!),
-                ShiftType = root.TryGetProperty("shiftType", out var shiftTypeProp)
-                    ? shiftTypeProp.GetString()?.Trim()
-                    : null,
-                Department = root.TryGetProperty("department", out var deptProp)
-                    ? deptProp.GetString()
-                    : null
+                ShiftTypeId = root.TryGetProperty("shiftTypeId", out var shiftTypeProp) && shiftTypeProp.ValueKind == JsonValueKind.Number
+                    ? shiftTypeProp.GetInt32()
+                    : (int?)null,
+                DepartmentId = root.TryGetProperty("departmentId", out var deptProp) && deptProp.ValueKind == JsonValueKind.Number
+                    ? deptProp.GetInt32()
+                    : (int?)null
             };
-
 
             var dateWiseResult = await _staffService.SearchAvailableStaffAsync(filterDto);
 
@@ -53,25 +52,24 @@ public class SearchAvailableStaffToolHandler : IToolHandler
                 return CreateError(call.Id, "No available staff found for the given criteria.");
             }
 
-
             var output = new
             {
                 success = true,
                 availableStaff = dateWiseResult
-                     .Where(r => r != null && r.AvailableStaff.Count > 0)
-                     .ToDictionary(
-                         r => r!.Date.ToString("yyyy-MM-dd"),
-                         r => r.AvailableStaff.Select(s => new
-                         {
-                             staffId = s.StaffId,
-                             staffName = s.StaffName,
-                             roleId = s.RoleId,
-                             roleName = s.RoleName,
-                             departmentId = s.StaffDepartmentId,
-                             departmentName = s.StaffDepartmentName,
-                             isActive = s.IsActive
-                         })
-                     )
+                    .Where(r => r != null && r.AvailableStaff.Count > 0)
+                    .ToDictionary(
+                        r => r!.Date.ToString("yyyy-MM-dd"),
+                        r => r.AvailableStaff.Select(s => new
+                        {
+                            staffId = s.StaffId,
+                            staffName = s.StaffName,
+                            roleId = s.RoleId,
+                            roleName = s.RoleName,
+                            departmentId = s.StaffDepartmentId,
+                            departmentName = s.StaffDepartmentName,
+                            isActive = s.IsActive
+                        })
+                    )
             };
 
             return new ToolOutput(call.Id, JsonSerializer.Serialize(output));

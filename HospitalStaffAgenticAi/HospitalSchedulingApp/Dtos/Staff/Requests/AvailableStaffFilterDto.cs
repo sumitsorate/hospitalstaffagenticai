@@ -21,12 +21,12 @@ namespace HospitalSchedulingApp.Dtos.Staff.Requests
         /// <summary>
         /// The type of shift to filter by (e.g., "Morning", "Evening", "Night").
         /// </summary>
-        public string? ShiftType { get; set; } =  string.Empty;
+        public int? ShiftTypeId { get; set; }
 
         /// <summary>
         /// Optional department name to prioritize staff from a specific department.
         /// </summary>
-        public string? Department { get; set; }
+        public int? DepartmentId { get; set; }
 
     }
 }
