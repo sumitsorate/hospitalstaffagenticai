@@ -2,8 +2,8 @@
 {
     public enum LeaveType
     {
-        Sick,
-        Casual,
-        Vacation
+        Sick =1,
+        Casual = 2,
+        Vacation = 3
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Tools.Department;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
+using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
 using HospitalSchedulingApp.Agent.Tools.Shift;
 using HospitalSchedulingApp.Agent.Tools.Staff;
 
@@ -15,6 +16,9 @@ namespace HospitalSchedulingApp.Agent.Tools
             ResolveStaffInfoByNameTool.GetTool(),
             ResolveRelativeDateTool.GetTool(),
             SearchAvailableStaffTool.GetTool(),
+            SubmitLeaveRequestTool.GetTool(),
+            CancelLeaveRequestTool.GetTool(),
+            ResolveLeaveStatusTool.GetTool(),
            
              //ResolveRelativeDateTool.GetTool(),
             //DepartmentNameResolverTool.GetTool(),

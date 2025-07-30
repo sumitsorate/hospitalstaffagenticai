@@ -5,6 +5,7 @@ using HospitalSchedulingApp.Agent.AgentStore;
 using HospitalSchedulingApp.Agent.Handlers;
 using HospitalSchedulingApp.Agent.Handlers.Department;
 using HospitalSchedulingApp.Agent.Handlers.HelperHandlers;
+using HospitalSchedulingApp.Agent.Handlers.LeaveRequest;
 using HospitalSchedulingApp.Agent.Handlers.Shift;
 using HospitalSchedulingApp.Agent.Handlers.Staff;
 using HospitalSchedulingApp.Agent.Services;
@@ -102,6 +103,8 @@ builder.Services.AddScoped<IPlannedShiftService, PlannedShiftService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IShiftTypeService, ShiftTypeService>();
+builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
+builder.Services.AddScoped<ILeaveTypeService, LeaveTypeService>();
 
 // Tool Handlers
 builder.Services.AddScoped<IToolHandler, FilterPlannedShiftsToolHandler>();
@@ -109,6 +112,9 @@ builder.Services.AddScoped<IToolHandler, ResolveDepartmentInfoToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveStaffInfoByNameToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveRelativeDateToolHandler>();
 builder.Services.AddScoped<IToolHandler, SearchAvailableStaffToolHandler>();
+builder.Services.AddScoped<IToolHandler, SubmitLeaveRequestToolHandler>();
+builder.Services.AddScoped<IToolHandler, CancelLeaveRequestToolHandler>();
+builder.Services.AddScoped<IToolHandler, ResolveLeaveStatusToolHandler>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

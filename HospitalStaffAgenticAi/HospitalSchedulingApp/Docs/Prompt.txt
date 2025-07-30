@@ -46,3 +46,64 @@ Talk to Schedule :
 5. We need a nurse for the icu department tonight — who’s not scheduled yet?
 
 6. I need someone to cover a duty in pediatrics this Friday night. Who’s free? -- not working
+
+
+Leave Request Filtering Prompts :
+
+. Filter by Leave Status Only
+“Show all pending leave requests”
+
+“Get approved leave requests”
+
+“List rejected leave applications”
+
+→ Filters by leaveStatus only.
+
+2. Filter by Staff Name Only
+“Show leave requests for Dr. Meera”
+
+“Get all leaves applied by Ajay”
+
+→ Resolve staff name → filter by staffId.
+
+3. Filter by Date Range Only
+“View leave requests between July 10 and July 20”
+
+“Show all leaves in the first week of August”
+
+→ Filter by startDate and endDate.
+
+4. Status + Staff Name
+“Show pending leave requests for Meera”
+
+“List rejected leaves of Ajay”
+
+→ Resolve staff name → filter by staffId and leaveStatus.
+
+5. Status + Date Range
+“Get approved leaves between July 1 and July 15”
+
+“List pending requests in August”
+
+→ Filter by leaveStatus + startDate/endDate.
+
+6. Staff + Date Range
+“Leaves applied by Dr. Ramesh in July”
+
+“List Ajay’s leaves from July 10 to July 15”
+
+→ Resolve staff name → filter by staffId and date range.
+
+7. Staff + Status + Date Range
+“Show approved leaves for Ajay between July 1 and July 10”
+
+→ Resolve staff name → filter by all three.
+
+8. No Filters (Get All)
+“Show all leave requests”
+
+“List every leave request so far”
+
+→ All filters null → return everything (if allowed).
+
+🧠 Agent Handling
