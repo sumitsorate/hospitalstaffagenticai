@@ -1,5 +1,5 @@
 ﻿using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.Tools.Staff;
+using HospitalSchedulingApp.Agent.Tools.HelperTools;
 using HospitalSchedulingApp.Services.Interfaces;
 using System.Text.Json;
 

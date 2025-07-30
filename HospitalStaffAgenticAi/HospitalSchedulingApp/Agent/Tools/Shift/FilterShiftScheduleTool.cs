@@ -9,32 +9,32 @@ namespace HospitalSchedulingApp.Agent.Tools.Shift
         {
             return new FunctionToolDefinition(
                 name: "filterShiftSchedule",
-                description: "Retrieves planned shift schedules using optional filters like department name, staff name, shift type, shift status, and date range. Useful for querying when, where, and what type of shifts are scheduled for specific individuals or departments.",
+                description: "Retrieves planned shift schedules using optional filters like department ID, staff ID, shift type ID, shift status ID, and date range. Useful for querying when, where, and what type of shifts are scheduled for specific individuals or departments.",
                 parameters: BinaryData.FromObjectAsJson(
                     new
                     {
                         type = "object",
                         properties = new
                         {
-                            departmentName = new
+                            departmentId = new
                             {
-                                type = "string",
-                                description = "Optional. The name of the department to filter shift schedule (e.g., ICU, OPD, Pediatrics)."
+                                type = "integer",
+                                description = "Optional. Department ID to filter shift schedule (e.g., 1 for ICU, 2 for OPD)."
                             },
-                            staffName = new
+                            staffId = new
                             {
-                                type = "string",
-                                description = "Optional. The full or partial name of the staff member to search shifts for (e.g., Asha Patil)."
+                                type = "integer",
+                                description = "Optional. Staff ID to search shifts for a specific staff member."
                             },
-                            shiftTypeName = new
+                            shiftTypeId = new
                             {
-                                type = "string",
-                                description = "Optional. The name of the shift type, such as 'Morning', 'Evening', or 'Night'."
+                                type = "integer",
+                                description = "Optional. Shift type ID, such as 1 for Morning, 2 for Evening, 3 for Night."
                             },
-                            shiftStatusName = new
+                            shiftStatusId = new
                             {
-                                type = "string",
-                                description = "Optional. The shift status like 'Scheduled', 'Assigned', or 'Vacant'."
+                                type = "integer",
+                                description = "Optional. Shift status ID like 1 for Scheduled, 2 for Assigned, 3 for Vacant."
                             },
                             fromDate = new
                             {

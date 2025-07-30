@@ -111,7 +111,6 @@ namespace HospitalSchedulingApp.Services
             return dtos;
         }
 
-
         public async Task<List<PlannedShiftDetailDto>> FetchFilteredPlannedShiftsAsync(ShiftFilterDto filter)
         {
             var shifts = await _plannedShiftRepo.GetAllAsync();
@@ -127,48 +126,28 @@ namespace HospitalSchedulingApp.Services
             if (filter.ToDate.HasValue)
                 shifts = shifts.Where(s => s.ShiftDate <= filter.ToDate.Value).ToList();
 
-            // Filter by department name
-            if (!string.IsNullOrWhiteSpace(filter.DepartmentName))
+            // Filter by department ID
+            if (filter.DepartmentId.HasValue)
             {
-                var deptIds = departments
-                    .Where(d => d.DepartmentName.Equals(filter.DepartmentName, StringComparison.OrdinalIgnoreCase))
-                    .Select(d => d.DepartmentId)
-                    .ToHashSet();
-
-                shifts = shifts.Where(s => deptIds.Contains(s.DepartmentId)).ToList();
+                shifts = shifts.Where(s => s.DepartmentId == filter.DepartmentId.Value).ToList();
             }
 
-            // Filter by shift type
-            if (!string.IsNullOrWhiteSpace(filter.ShiftTypeName))
+            // Filter by shift type ID
+            if (filter.ShiftTypeId.HasValue)
             {
-                var shiftTypeIds = shiftTypes
-                    .Where(st => st.ShiftTypeName.Equals(filter.ShiftTypeName, StringComparison.OrdinalIgnoreCase))
-                    .Select(st => st.ShiftTypeId)
-                    .ToHashSet();
-
-                shifts = shifts.Where(s => shiftTypeIds.Contains((int)s.ShiftTypeId)).ToList();
+                shifts = shifts.Where(s => (int)s.ShiftTypeId == filter.ShiftTypeId.Value).ToList();
             }
 
-            // Filter by shift status
-            if (!string.IsNullOrWhiteSpace(filter.ShiftStatusName))
+            // Filter by shift status ID
+            if (filter.ShiftStatusId.HasValue)
             {
-                var statusIds = shiftStatuses
-                    .Where(ss => ss.ShiftStatusName.Equals(filter.ShiftStatusName, StringComparison.OrdinalIgnoreCase))
-                    .Select(ss => ss.ShiftStatusId)
-                    .ToHashSet();
-
-                shifts = shifts.Where(s => statusIds.Contains((int)s.ShiftStatusId)).ToList();
+                shifts = shifts.Where(s => (int)s.ShiftStatusId == filter.ShiftStatusId.Value).ToList();
             }
 
-            // Filter by staff name (partial match)
-            if (!string.IsNullOrWhiteSpace(filter.StaffName))
+            // Filter by staff ID
+            if (filter.StaffId.HasValue)
             {
-                var matchedStaff = staff
-                    .Where(s => s.StaffName.Contains(filter.StaffName, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                var matchedIds = matchedStaff.Select(s => s.StaffId).ToHashSet();
-                shifts = shifts.Where(s => s.AssignedStaffId.HasValue && matchedIds.Contains(s.AssignedStaffId.Value)).ToList();
+                shifts = shifts.Where(s => s.AssignedStaffId.HasValue && s.AssignedStaffId.Value == filter.StaffId.Value).ToList();
             }
 
             // Map to DTOs
@@ -183,14 +162,14 @@ namespace HospitalSchedulingApp.Services
                     PlannedShiftId = shift.PlannedShiftId,
                     ShiftDate = shift.ShiftDate,
                     SlotNumber = shift.SlotNumber,
-                    ShiftTypeId =(int) shift.ShiftTypeId,
+                    ShiftTypeId = (int)shift.ShiftTypeId,
                     DepartmentId = shift.DepartmentId,
-                    ShiftStatusId =(int) shift.ShiftStatusId,
+                    ShiftStatusId = (int)shift.ShiftStatusId,
                     AssignedStaffId = shift.AssignedStaffId,
 
-                    ShiftTypeName = shiftTypes.FirstOrDefault(st => st.ShiftTypeId ==(int) shift.ShiftTypeId)?.ShiftTypeName ?? string.Empty,
+                    ShiftTypeName = shiftTypes.FirstOrDefault(st => st.ShiftTypeId == (int)shift.ShiftTypeId)?.ShiftTypeName ?? string.Empty,
                     ShiftDeparmentName = departments.FirstOrDefault(d => d.DepartmentId == shift.DepartmentId)?.DepartmentName ?? string.Empty,
-                    ShiftStatusName = shiftStatuses.FirstOrDefault(ss => ss.ShiftStatusId ==(int) shift.ShiftStatusId)?.ShiftStatusName ?? string.Empty,
+                    ShiftStatusName = shiftStatuses.FirstOrDefault(ss => ss.ShiftStatusId == (int)shift.ShiftStatusId)?.ShiftStatusName ?? string.Empty,
                     AssignedStaffFullName = assignedStaff?.StaffName ?? string.Empty,
                     AssignedStaffDepartmentName = assignedStaff != null
                         ? departments.FirstOrDefault(d => d.DepartmentId == assignedStaff.StaffDepartmentId)?.DepartmentName ?? string.Empty

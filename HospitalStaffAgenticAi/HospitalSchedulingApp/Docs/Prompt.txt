@@ -9,7 +9,7 @@ Talk to Schedule :
 
 3. Show ICU Night shifts for this week --
 
-4. Who worked in OPD yesterday --
+4. Who worked in ICU yesterday --
 
 5. When is Emma working next? --
 

@@ -115,6 +115,8 @@ builder.Services.AddScoped<IToolHandler, SearchAvailableStaffToolHandler>();
 builder.Services.AddScoped<IToolHandler, SubmitLeaveRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, CancelLeaveRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveLeaveStatusToolHandler>();
+builder.Services.AddScoped<IToolHandler, ResolveShiftStatusToolHandler>();
+builder.Services.AddScoped<IToolHandler, ResolveShiftTypeToolHandler>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
