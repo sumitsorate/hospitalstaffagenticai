@@ -5,7 +5,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HospitalSchedulingApp.Services
+namespace HospitalSchedulingApp.Services.Helpers
 {
     /// <summary>
     /// Service for retrieving shift type information.

@@ -1,4 +1,4 @@
-﻿namespace HospitalSchedulingApp.Services.Interfaces
+﻿namespace HospitalSchedulingApp.Services.AuthServices.Interfaces
 {
     /// <summary>
     /// Interface for generating JSON Web Tokens (JWT) for authenticated users.

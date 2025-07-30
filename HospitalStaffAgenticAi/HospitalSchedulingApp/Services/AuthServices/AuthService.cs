@@ -3,9 +3,9 @@ using HospitalSchedulingApp.Agent.Services;
 using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dal.Repositories;
 using HospitalSchedulingApp.Dtos.Auth;
-using HospitalSchedulingApp.Services.Interfaces;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 
-namespace HospitalSchedulingApp.Services
+namespace HospitalSchedulingApp.Services.AuthServices
 {
     /// <summary>
     /// Handles user authentication logic including login, logout, and validation.
@@ -114,7 +114,7 @@ namespace HospitalSchedulingApp.Services
                           combined.uc.PasswordHash,
                           combined.s.StaffId,
                           combined.s.StaffName,
-                          RoleName = r.RoleName
+                          r.RoleName
                       })
                 .FirstOrDefault();
 

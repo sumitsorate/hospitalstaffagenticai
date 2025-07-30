@@ -9,10 +9,12 @@ using HospitalSchedulingApp.Agent.Handlers.LeaveRequest;
 using HospitalSchedulingApp.Agent.Handlers.Shift;
 using HospitalSchedulingApp.Agent.Handlers.Staff;
 using HospitalSchedulingApp.Agent.Services;
-using HospitalSchedulingApp.Agent.Tools.Department;
 using HospitalSchedulingApp.Dal.Data;
 using HospitalSchedulingApp.Dal.Repositories;
 using HospitalSchedulingApp.Services;
+using HospitalSchedulingApp.Services.AuthServices;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
+using HospitalSchedulingApp.Services.Helpers;
 using HospitalSchedulingApp.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
@@ -117,6 +119,7 @@ builder.Services.AddScoped<IToolHandler, CancelLeaveRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveLeaveStatusToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveShiftStatusToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveShiftTypeToolHandler>();
+builder.Services.AddScoped<IToolHandler, ResolveLeaveTypeToolHandler>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

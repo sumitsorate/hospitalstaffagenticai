@@ -1,4 +1,5 @@
-﻿using Azure.AI.Agents.Persistent;
+﻿using Azure;
+using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
 using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dal.Entities;
@@ -68,21 +69,27 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 // ❌ Cancel the leave
                 var cancelled = await _leaveRequestService.CancelLeaveRequestAsync(existing);
 
-                var response = new
+                if (cancelled != null)
                 {
-                    success = true,
-                    message = "Leave request cancelled successfully.",
-                    data = new
+                    var response = new
                     {
-                        cancelled.StaffId,
-                        cancelled.LeaveStart,
-                        cancelled.LeaveEnd
-                    }
-                };
+                        success = true,
+                        message = "Leave request cancelled successfully.",
+                        data = new
+                        {
+                            cancelled.StaffId,
+                            cancelled.LeaveStart,
+                            cancelled.LeaveEnd
+                        }
+                    };
 
-                var json = JsonSerializer.Serialize(response);
-                _logger.LogInformation("Leave request cancelled: {Json}", json);
-                return new ToolOutput(call.Id, json);
+                    var json = JsonSerializer.Serialize(response);
+                    _logger.LogInformation("Leave request cancelled: {Json}", json);
+                    return new ToolOutput(call.Id, json);
+
+                }
+                return CreateError(call.Id, "Unable to cancel the leave request.");
+
             }
             catch (Exception ex)
             {

@@ -1,6 +1,6 @@
 ﻿using HospitalSchedulingApp.Dtos.Auth;
 
-namespace HospitalSchedulingApp.Services.Interfaces
+namespace HospitalSchedulingApp.Services.AuthServices.Interfaces
 {
     /// <summary>
     /// Provides authentication-related operations such as login and logout.

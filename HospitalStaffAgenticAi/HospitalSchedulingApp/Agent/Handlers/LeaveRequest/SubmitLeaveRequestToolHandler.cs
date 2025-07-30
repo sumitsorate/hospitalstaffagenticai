@@ -14,17 +14,14 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
     public class SubmitLeaveRequestToolHandler : IToolHandler
     {
         private readonly ILeaveRequestService _leaveRequestService;
-        private readonly ILeaveTypeService _leaveTypeService;
         private readonly ILogger<SubmitLeaveRequestToolHandler> _logger;
 
         public SubmitLeaveRequestToolHandler(
             ILeaveRequestService leaveRequestService,
-            ILeaveTypeService leaveTypeService,
             ILogger<SubmitLeaveRequestToolHandler> logger)
         {
             _leaveRequestService = leaveRequestService;
             _logger = logger;
-            _leaveTypeService = leaveTypeService;
         }
 
         public string ToolName => SubmitLeaveRequestTool.GetTool().Name;
@@ -61,11 +58,16 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 }
 
                 // 🏷️ Optional leaveType
-                string leaveType = root.TryGetProperty("leaveType", out var leaveTypeProp)
-                    ? leaveTypeProp.GetString() ?? "Unspecified"
-                    : "Unspecified";
+                // 🏷️ Required leaveTypeId
+                if (!root.TryGetProperty("leaveTypeId", out var leaveTypeProp) ||
+                    !leaveTypeProp.TryGetInt32(out var leaveTypeIdInt) ||
+                    !Enum.IsDefined(typeof(LeaveType), leaveTypeIdInt))
+                {
+                    return CreateError(call.Id, "Invalid or missing leaveTypeId. Must be one of the supported leave types.");
+                }
 
-                var leaveTypeId = await _leaveTypeService.FetchLeaveType(leaveType);
+                var leaveTypeId = (LeaveType)leaveTypeIdInt;
+
 
 
                 // 📝 Construct leave request
@@ -74,7 +76,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     StaffId = staffId,
                     LeaveStart = leaveStart,
                     LeaveEnd = leaveEnd,
-                    LeaveTypeId =(LeaveType) leaveTypeId.LeaveTypeId,
+                    LeaveTypeId = leaveTypeId,
                     LeaveStatusId = Common.Enums.LeaveRequestStatuses.Pending                    
                 };
 

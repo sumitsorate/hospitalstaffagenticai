@@ -1,6 +1,6 @@
 using Azure.Core;
 using HospitalSchedulingApp.Dtos.Auth;
-using HospitalSchedulingApp.Services.Interfaces;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HospitalSchedulingApp.Controllers

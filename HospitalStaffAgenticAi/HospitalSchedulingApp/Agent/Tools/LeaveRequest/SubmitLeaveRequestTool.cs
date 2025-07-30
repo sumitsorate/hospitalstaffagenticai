@@ -19,9 +19,9 @@ namespace HospitalSchedulingApp.Agent.Tools.LeaveRequest
                             staffId = new { type = "integer", description = "The ID of the staff applying for leave." },
                             leaveStart = new { type = "string", format = "date", description = "Leave start date in yyyy-MM-dd format." },
                             leaveEnd = new { type = "string", format = "date", description = "Leave end date in yyyy-MM-dd format." },
-                            leaveType = new { type = "string", description = "Type of leave (e.g., Sick, Vacation, Emergency)." }
+                            leaveTypeId = new { type = "integer", description = "Type of leave (e.g., Sick, Vacation, Emergency)." }
                         },
-                        required = new[] { "staffId", "leaveStart", "leaveEnd", "leaveType" }
+                        required = new[] { "staffId", "leaveStart", "leaveEnd", "leaveTypeId" }
                     },
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
                 )

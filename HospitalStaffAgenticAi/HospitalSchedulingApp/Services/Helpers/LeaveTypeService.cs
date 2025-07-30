@@ -3,7 +3,7 @@ using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dal.Repositories;
 using HospitalSchedulingApp.Services.Interfaces;
 
-namespace HospitalSchedulingApp.Services
+namespace HospitalSchedulingApp.Services.Helpers
 {
     public class LeaveTypeService : ILeaveTypeService
     {

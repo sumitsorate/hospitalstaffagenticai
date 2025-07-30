@@ -1,10 +1,10 @@
-﻿using HospitalSchedulingApp.Services.Interfaces;
+﻿using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace HospitalSchedulingApp.Services
+namespace HospitalSchedulingApp.Services.AuthServices
 {
     /// <summary>
     /// Service responsible for generating JWT tokens for authenticated staff members.

@@ -19,6 +19,7 @@ namespace HospitalSchedulingApp.Services
         /// </summary>
         public async Task<LeaveRequests> SubmitLeaveRequestAsync(LeaveRequests request)
         {
+            request.LeaveStatusId = LeaveRequestStatuses.Pending;
             await _leaveRequestRepo.AddAsync(request);
             await _leaveRequestRepo.SaveAsync();
             return request;
