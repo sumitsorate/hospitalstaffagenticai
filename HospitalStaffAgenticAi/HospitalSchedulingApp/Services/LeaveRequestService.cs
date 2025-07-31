@@ -55,6 +55,9 @@ namespace HospitalSchedulingApp.Services
 
             var query = leaveRequests.AsQueryable();
 
+            if (filter.LeaveRequestId.HasValue)
+                query = query.Where(lr => lr.Id == filter.LeaveRequestId.Value);
+
             if (filter.StaffId.HasValue)
                 query = query.Where(lr => lr.StaffId == filter.StaffId.Value);
 
@@ -145,6 +148,31 @@ namespace HospitalSchedulingApp.Services
                 l.LeaveEnd >= request.LeaveStart);
 
             return overlapExists;
+        }
+
+        public async Task<LeaveRequestDetailsDto?> UpdateStatusAsync(int leaveRequestId, LeaveRequestStatuses newStatus)
+        {
+            var leaveRequest = await _leaveRequestRepo.GetByIdAsync(leaveRequestId);
+            if (leaveRequest == null)
+                return null; // Not found
+
+            if (leaveRequest.LeaveStatusId != LeaveRequestStatuses.Pending)
+                return null; // Can only update pending requests
+
+            if (leaveRequest.LeaveStatusId == newStatus)
+                return null;   // Already same, return as-is
+
+            // Update status
+            leaveRequest.LeaveStatusId = newStatus;
+            _leaveRequestRepo.Update(leaveRequest);
+            await _leaveRequestRepo.SaveAsync();
+
+            // Reload related data if needed (e.g., staff, type, etc.)
+            var leaveRequestDetails = await FetchLeaveRequestsAsync(new LeaveRequestFilter
+            {
+                LeaveRequestId = leaveRequestId
+            });
+            return leaveRequestDetails.FirstOrDefault();
         }
     }
 

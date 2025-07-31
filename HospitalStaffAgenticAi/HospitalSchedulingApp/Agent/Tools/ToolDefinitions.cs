@@ -22,7 +22,8 @@ namespace HospitalSchedulingApp.Agent.Tools
             ResolveShiftTypeTool.GetTool(),
             ResolveShiftStatusTool.GetTool(),
             ResolveLeaveTypeTool.GetTool(),
-            FetchLeaveRequestTool.GetTool()
+            FetchLeaveRequestTool.GetTool(),
+            ApproveOrRejectLeaveRequestTool.GetTool(),
            
              //ResolveRelativeDateTool.GetTool(),
             //DepartmentNameResolverTool.GetTool(),

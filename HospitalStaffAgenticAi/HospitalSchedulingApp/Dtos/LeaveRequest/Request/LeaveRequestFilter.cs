@@ -4,6 +4,7 @@ namespace HospitalSchedulingApp.Dtos.LeaveRequest.Request
 {
     public class LeaveRequestFilter
     {
+        public int? LeaveRequestId {get;set;}
         public int? StaffId { get; set; }
         public LeaveRequestStatuses? LeaveStatusId { get; set; } // "Pending", "Approved", "Rejected"
         public DateTime? StartDate { get; set; }

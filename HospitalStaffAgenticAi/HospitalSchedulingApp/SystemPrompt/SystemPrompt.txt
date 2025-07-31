@@ -107,3 +107,32 @@ Here are some examples:
 
 ✅
 
+🛠️ ApproveOrRejectLeaveRequestTool
+You can approve or reject a leave request using this tool.
+
+✅ You may invoke this tool if the user says:
+
+“Approve my leave”
+
+“Reject Priya’s casual leave”
+
+“Approve the leave from 5th to 7th”
+
+“Reject that leave request”
+
+The tool can work with:
+
+leaveRequestId (if known)
+
+OR combination of:
+
+staffId (resolve from name or user context)
+ 
+
+startDate and endDate
+
+🎯 The tool accepts a newStatus of either "Approved" or "Rejected".
+
+📦 On success, return the full updated LeaveRequestDetailsDto object to confirm details.
+
+❗If information is ambiguous (e.g., “Approve that”), use reasoning or context to resolve it using the leave history. If not possible, politely ask for more details.

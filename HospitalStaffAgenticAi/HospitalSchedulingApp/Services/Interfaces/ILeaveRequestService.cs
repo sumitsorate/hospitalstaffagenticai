@@ -1,4 +1,5 @@
-﻿using HospitalSchedulingApp.Dal.Entities;
+﻿using HospitalSchedulingApp.Common.Enums;
+using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dtos.LeaveRequest.Request;
 using HospitalSchedulingApp.Dtos.LeaveRequest.Response;
 
@@ -15,5 +16,8 @@ namespace HospitalSchedulingApp.Services.Interfaces
         Task<LeaveRequests?> FetchLeaveRequestInfoAsync(int staffId, DateTime leaveStart, DateTime leaveEnd);
 
         Task<List<LeaveRequestDetailsDto>> FetchLeaveRequestsAsync(LeaveRequestFilter filter);
+
+        Task<LeaveRequestDetailsDto?> UpdateStatusAsync(int leaveRequestId, LeaveRequestStatuses newStatus);
+
     }
 }

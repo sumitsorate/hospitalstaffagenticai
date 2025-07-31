@@ -3,12 +3,14 @@
 Fetching Shift Schedule - Working
 Find Available Staff Datewise - Working
 Single Thread Per user implementation
+
 Leave Request
  - Submit Leave Request
  - Cancel Leave Request Working
+ - View Pending,Approve Rejected Leave Request
 
 Next
- - View Pending,Approve Rejected Leave Request
+ - Fetch Uncovered Shift
  - Approve, Reject Leave Request
 
  When Leave Request is approved find impacted shift

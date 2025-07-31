@@ -27,6 +27,9 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             try
             {
                 // Parse optional fields
+                int? leaveRequestId = root.TryGetProperty("leaveRequestId", out var leaveRequestIdProp) && leaveRequestIdProp.TryGetInt32(out var lId) ? lId : null;
+
+                // Parse optional fields
                 int? staffId = root.TryGetProperty("staffId", out var staffIdProp) && staffIdProp.TryGetInt32(out var sid) ? sid : null;
 
                 LeaveRequestStatuses? leaveStatusId = null;
@@ -54,6 +57,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 // Construct filter
                 var filter = new LeaveRequestFilter
                 {
+                    LeaveRequestId = leaveRequestId,
                     StaffId = staffId,
                     LeaveStatusId = leaveStatusId,
                     StartDate = startDate,
