@@ -15,7 +15,6 @@ namespace HospitalSchedulingApp.Services.AuthServices
     public class AuthService : IAuthService
     {
         private readonly IRepository<UserCredential> _userCredentialRepo;
-        private readonly IRepository<AgentConversations> _agentConversations;
         private readonly IRepository<Staff> _staffRepo;
         private readonly IRepository<Role> _roleRepo;
         private readonly IAgentService _agentService;
@@ -35,7 +34,6 @@ namespace HospitalSchedulingApp.Services.AuthServices
             _staffRepo = staffRepo;
             _roleRepo = roleRepo;
             _agentService = agentService;
-            _agentConversations = agentConversations;
             _jwtTokenService = jwtTokenService;
             _agentConversationService = agentConversationService;
         }
@@ -137,19 +135,19 @@ namespace HospitalSchedulingApp.Services.AuthServices
         /// <exception cref="InvalidOperationException">Thrown if no thread is found.</exception>
         public async Task Logout(string threadId)
         {
-            var allConversations = await _agentConversations.GetAllAsync();
-            var agentConv = allConversations.FirstOrDefault(x => x.ThreadId == threadId);
+            var agentConversation = await _agentConversationService
+                .FetchLoggedInUserAgentConversationInfo();
 
-            if (agentConv != null)
+            if (!string.IsNullOrWhiteSpace(agentConversation?.ThreadId))
             {
-                await _agentService.DeleteThreadForUser(threadId);
-                _agentConversations.Delete(agentConv);
-                await _agentConversations.SaveAsync();
+                await _agentService.DeleteThreadForUser(agentConversation.ThreadId);
             }
-            else
+
+            if (agentConversation != null)
             {
-                throw new InvalidOperationException("No agent conversation found for the given thread ID.");
+                await _agentConversationService.DeleteAgentConversation(agentConversation);
             }
         }
+
     }
 }
