@@ -122,6 +122,8 @@ builder.Services.AddScoped<IToolHandler, ResolveLeaveStatusToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveShiftStatusToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveShiftTypeToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveLeaveTypeToolHandler>();
+builder.Services.AddScoped<IToolHandler, FetchLeaveRequestToolHandler>();
+
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();

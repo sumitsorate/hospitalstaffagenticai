@@ -49,7 +49,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 {
                     input,
                     matchedStatus,
-                    matchedStatusValue = (int)Enum.Parse(typeof(LeaveStatus), matchedStatus)
+                    matchedStatusValue = (int)Enum.Parse(typeof(LeaveRequestStatuses), matchedStatus)
                 }
             };
 

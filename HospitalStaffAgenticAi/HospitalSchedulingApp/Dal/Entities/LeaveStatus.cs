@@ -1,4 +1,6 @@
-﻿namespace HospitalSchedulingApp.Dal.Entities
+﻿using HospitalSchedulingApp.Common.Enums;
+
+namespace HospitalSchedulingApp.Dal.Entities
 {
     public class LeaveStatus
     {
