@@ -1,7 +1,7 @@
 ﻿using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dal.Entities;
 
-namespace HospitalSchedulingApp.Services.Interfaces
+namespace HospitalSchedulingApp.Services.Helpers
 {
     public interface ILeaveTypeService
     {
