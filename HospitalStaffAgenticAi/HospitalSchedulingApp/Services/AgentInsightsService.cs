@@ -4,6 +4,7 @@ using HospitalSchedulingApp.Dal.Repositories;
 using HospitalSchedulingApp.Dtos.Agent;
 using HospitalSchedulingApp.Dtos.LeaveRequest.Request;
 using HospitalSchedulingApp.Dtos.Shift.Requests;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
 
 namespace HospitalSchedulingApp.Services
@@ -12,17 +13,27 @@ namespace HospitalSchedulingApp.Services
     {
         private readonly IPlannedShiftService _plannedShiftService;
         private readonly ILeaveRequestService _leaveRequestService;
+        private readonly IUserContextService _userContextService;
 
         public AgentInsightsService(
             IPlannedShiftService plannedShiftService,
-            ILeaveRequestService leaveRequestService)
+            ILeaveRequestService leaveRequestService,
+            IUserContextService userContextService)
         {
             _plannedShiftService = plannedShiftService;
             _leaveRequestService = leaveRequestService;
+            _userContextService = userContextService;
         }
 
-        public async Task<AgentSummaryResponseDto> GetDailySchedulerSummaryAsync()
+        public async Task<AgentSummaryResponseDto?> GetDailySchedulerSummaryAsync()
         {
+            var isScheduler = _userContextService.IsScheduler();
+
+            if (!isScheduler)
+            {
+                return null;
+            }
+
             var today = DateTime.Today;
             var shiftFilter = new ShiftFilterDto
             {

@@ -4,6 +4,6 @@ namespace HospitalSchedulingApp.Services.Interfaces
 {
     public interface IAgentInsightsService
     {
-        Task<AgentSummaryResponseDto> GetDailySchedulerSummaryAsync();
+        Task<AgentSummaryResponseDto?> GetDailySchedulerSummaryAsync();
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Tools.Shift;
 using HospitalSchedulingApp.Dtos.Shift.Requests;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
 using System.Text.Json;
 
@@ -10,13 +11,16 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
     {
         private readonly IPlannedShiftService _plannedShiftService;
         private readonly ILogger<FilterPlannedShiftsToolHandler> _logger;
+        private readonly IUserContextService _userContextService;
 
         public FilterPlannedShiftsToolHandler(
             IPlannedShiftService plannedShiftService,
-            ILogger<FilterPlannedShiftsToolHandler> logger)
+            ILogger<FilterPlannedShiftsToolHandler> logger,
+            IUserContextService userContextService)
         {
             _plannedShiftService = plannedShiftService;
             _logger = logger;
+            _userContextService = userContextService;
         }
 
         public string ToolName => FilterShiftScheduleTool.GetTool().Name;
@@ -35,6 +39,21 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
                     ToDate = root.TryGetProperty("toDate", out var toProp) && DateTime.TryParse(toProp.GetString(), out var toDate) ? toDate : null,
                     SlotNumber = root.TryGetProperty("slotNumber", out var slotNumberProp) && slotNumberProp.TryGetInt32(out var slotNumber) ? slotNumber : null,
                 };
+
+                var isEmployee = _userContextService.IsEmployee();
+                var loggedInUserStaffID = _userContextService.GetStaffId();
+
+                if (isEmployee)
+                {
+                    // 🔐 Force employee to see only their own shifts
+                    if (filter.StaffId.HasValue && filter.StaffId != loggedInUserStaffID)
+                    {
+                        return CreateError(call.Id, "🚫 You're only allowed to view your own shift schedule.");
+                    }
+
+                    // Even if not specified, restrict to logged-in user
+                    filter.StaffId = loggedInUserStaffID;
+                }
 
                 _logger.LogInformation("Filtering shifts with: {@Filter}", filter);
 
@@ -63,6 +82,16 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
             });
 
             return new ToolOutput(callId, errorJson);
+        }
+
+        private ToolOutput CreateError(string toolCallId, string message)
+        {
+            var error = new
+            {
+                success = false,
+                error = message
+            };
+            return new ToolOutput(toolCallId, JsonSerializer.Serialize(error));
         }
     }
 }

@@ -13,13 +13,17 @@ Leave Request
  - When Leave Request is approved find impacted shift
  - When Leave Request is approved then change the status
    of leave request to Vacant
-
-Next
  - FetchSmartSuggestion: Fetch Uncovered Shift, View Pending Leave Request
+ - Role based login and fetching only relevant data
  - Conditional loading of messages
- - Correct threading logic
+Next
+
+
+ - Correct threading logic  &  - Login and Logout issue
  - Proper message display
- - Login and Logout issie
+ - When the application stops clear of all the threads
+
+
 
 
 

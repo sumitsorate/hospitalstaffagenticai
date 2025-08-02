@@ -3,6 +3,7 @@ using HospitalSchedulingApp.Agent.Handlers;
 using HospitalSchedulingApp.Agent.Tools.Staff;
 using HospitalSchedulingApp.Dtos.Staff;
 using HospitalSchedulingApp.Dtos.Staff.Requests;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -11,19 +12,27 @@ public class SearchAvailableStaffToolHandler : IToolHandler
 {
     private readonly IStaffService _staffService;
     private readonly ILogger<SearchAvailableStaffToolHandler> _logger;
+    private readonly IUserContextService _userContextService;
 
     public SearchAvailableStaffToolHandler(
         IStaffService staffService,
-        ILogger<SearchAvailableStaffToolHandler> logger)
+        ILogger<SearchAvailableStaffToolHandler> logger,
+        IUserContextService userContextService)
     {
         _staffService = staffService;
         _logger = logger;
+        _userContextService = userContextService;
     }
 
     public string ToolName => SearchAvailableStaffTool.GetTool().Name;
 
     public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
     {
+        var isScheduler = _userContextService.IsScheduler();
+        if (!isScheduler)
+        {
+            return CreateError(call.Id, "🚫 Oops! You're not authorized to perform this action. Let me know if you need help with something else.");
+        }
         try
         {
             if (!root.TryGetProperty("startDate", out var startDateProp) ||

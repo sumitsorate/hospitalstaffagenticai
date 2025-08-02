@@ -3,6 +3,7 @@ using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
 using HospitalSchedulingApp.Agent.Tools.Shift;
 using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dal.Entities;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
 using System.Text.Json;
 
@@ -15,13 +16,16 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
     {
         private readonly ILeaveRequestService _leaveRequestService;
         private readonly ILogger<SubmitLeaveRequestToolHandler> _logger;
+        private readonly IUserContextService _userContextService;
 
         public SubmitLeaveRequestToolHandler(
             ILeaveRequestService leaveRequestService,
-            ILogger<SubmitLeaveRequestToolHandler> logger)
+            ILogger<SubmitLeaveRequestToolHandler> logger,
+            IUserContextService userContextService)
         {
             _leaveRequestService = leaveRequestService;
             _logger = logger;
+            _userContextService = userContextService;
         }
 
         public string ToolName => SubmitLeaveRequestTool.GetTool().Name;
@@ -64,6 +68,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     return CreateError(call.Id, "❌ Invalid or missing leave type ID. Please select a valid type.");
                 }
 
+
                 var leaveTypeId = (LeaveType)leaveTypeIdInt;
 
                 // 📝 Construct leave request
@@ -75,6 +80,16 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     LeaveTypeId = leaveTypeId,
                     LeaveStatusId = Common.Enums.LeaveRequestStatuses.Pending
                 };
+
+
+                // 🔒 Permission check
+                var isEmployee = _userContextService.IsEmployee();
+                var loggedInUserStaffId = _userContextService.GetStaffId();
+
+                if (isEmployee && staffId != loggedInUserStaffId)
+                {
+                    return CreateError(call.Id, "🚫 You can only submit leave requests for yourself. If you're trying to request leave for someone else, please contact a Scheduler.");
+                }
 
                 // 🔍 Check for overlap
                 var isOverlap = await _leaveRequestService.CheckIfLeaveAlreadyExists(leaveRequest);

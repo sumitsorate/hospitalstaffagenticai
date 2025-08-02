@@ -65,7 +65,9 @@ namespace HospitalSchedulingApp.Services.AuthServices
             else
             {
                 var thread = _agentService.CreateThread(); // Consider making this async
+               
                 loginInfo.ThreadId = thread.Id;
+                
                 await _agentConversationService.AddAgentConversation(new AgentConversations
                 {
                     UserId = loginInfo.StaffId.ToString(),

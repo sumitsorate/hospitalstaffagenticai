@@ -2,6 +2,7 @@
 using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
 using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dtos.LeaveRequest.Request;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
 using System.Text.Json;
 
@@ -11,13 +12,16 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
     {
         private readonly ILeaveRequestService _leaveRequestService;
         private readonly ILogger<FetchLeaveRequestToolHandler> _logger;
+        private readonly IUserContextService _userContextService;
 
         public FetchLeaveRequestToolHandler(
             ILeaveRequestService leaveRequestService,
-            ILogger<FetchLeaveRequestToolHandler> logger)
+            ILogger<FetchLeaveRequestToolHandler> logger,
+            IUserContextService userContextService)
         {
             _leaveRequestService = leaveRequestService;
             _logger = logger;
+            _userContextService = userContextService;
         }
 
         public string ToolName => FetchLeaveRequestTool.GetTool().Name;
@@ -53,6 +57,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     leaveTypeId = (LeaveType)typeVal;
                 }
 
+           
+
                 // Build filter object
                 var filter = new LeaveRequestFilter
                 {
@@ -63,6 +69,22 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     EndDate = endDate,
                     LeaveTypeId = leaveTypeId
                 };
+
+                // 🔒 Permission check
+                var isEmployee = _userContextService.IsEmployee();
+                var loggedInUserStaffId = _userContextService.GetStaffId();
+
+                if (isEmployee)
+                {
+                    if (filter.StaffId.HasValue && filter.StaffId != loggedInUserStaffId)
+                    {
+                        return CreateError(call.Id, "🚫 You're only allowed to view your own leave requests.");
+                    }
+
+                    // Enforce own ID even if null or tampered
+                    filter.StaffId = loggedInUserStaffId;
+                }
+
 
                 // Fetch results from service
                 var leaveRequests = await _leaveRequestService.FetchLeaveRequestsAsync(filter);

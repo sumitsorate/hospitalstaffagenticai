@@ -6,6 +6,7 @@ using HospitalSchedulingApp.Dtos.LeaveRequest.Request;
 using HospitalSchedulingApp.Dtos.Shift.Requests;
 using HospitalSchedulingApp.Dtos.Shift.Response;
 using HospitalSchedulingApp.Dtos.Staff.Requests;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
 using System.Text.Json;
 
@@ -16,21 +17,30 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
         private readonly IPlannedShiftService _plannedShiftService;
         private readonly ILeaveRequestService _leaveRequestService;
         private readonly ILogger<AssignShiftToStaffToolHandler> _logger;
+        private readonly IUserContextService _userContextService;
 
         public AssignShiftToStaffToolHandler(
             IPlannedShiftService plannedShiftService,
             ILogger<AssignShiftToStaffToolHandler> logger,
-            ILeaveRequestService leaveRequestService)
+            ILeaveRequestService leaveRequestService,
+            IUserContextService userContextService)
         {
             _plannedShiftService = plannedShiftService;
             _logger = logger;
             _leaveRequestService = leaveRequestService;
+            _userContextService = userContextService;
         }
 
         public string ToolName => AssignShiftToStaffTool.GetTool().Name;
 
         public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
+            var isScheduler = _userContextService.IsScheduler();
+            if (!isScheduler)
+            {
+                return CreateError(call.Id, "🚫 Oops! You're not authorized to perform this action. Let me know if you need help with something else.");
+            }
+
             try
             {
                 if (!root.TryGetProperty("plannedShiftId", out var shiftIdProp) || !shiftIdProp.TryGetInt32(out var plannedShiftId))

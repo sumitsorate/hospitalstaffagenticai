@@ -7,6 +7,7 @@ using HospitalSchedulingApp.Dtos.Shift.Requests;
 using HospitalSchedulingApp.Dtos.Shift.Response;
 using HospitalSchedulingApp.Dtos.Staff.Requests;
 using HospitalSchedulingApp.Dtos.Staff.Response;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -19,23 +20,31 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
         private readonly IPlannedShiftService _plannedShiftService;
         private readonly IStaffService _staffService;
         private readonly ILogger<ApproveOrRejectLeaveRequestToolHandler> _logger;
+        private readonly IUserContextService _userContextService;
 
         public ApproveOrRejectLeaveRequestToolHandler(
             ILeaveRequestService leaveRequestService,
             ILogger<ApproveOrRejectLeaveRequestToolHandler> logger,
             IPlannedShiftService plannedShiftService,
+            IUserContextService userContextService,
             IStaffService staffService)
         {
             _leaveRequestService = leaveRequestService;
             _logger = logger;
             _plannedShiftService = plannedShiftService;
             _staffService = staffService;
+            _userContextService = userContextService;
         }
 
         public string ToolName => ApproveOrRejectLeaveRequestTool.GetTool().Name;
 
         public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
+            var isScheduler = _userContextService.IsScheduler();
+            if (!isScheduler)
+            {
+                return CreateError(call.Id, "🚫 Oops! You're not authorized to perform this action. Let me know if you need help with something else.");
+            }
             try
             {
                 // Extract inputs

@@ -72,6 +72,28 @@ VALUES
 ('2025-08-02', 2, 1, 1, 1, 6),
 ('2025-08-03', 3, 1, 1, 1, 6);
 
+INSERT INTO UserCredential (staff_id, username, password_hash)
+VALUES (1, 'Elena', '$2a$12$5jorsqANhQeUqVS5iCo.r.CvA2y90mNJjdJZ87833Ffe3QXk7v9KW');
+
+INSERT INTO UserCredential (staff_id, username, password_hash)
+VALUES (2, 'Olivia', '$2a$12$5jorsqANhQeUqVS5iCo.r.CvA2y90mNJjdJZ87833Ffe3QXk7v9KW');
+
+INSERT INTO UserCredential (staff_id, username, password_hash)
+VALUES (3, 'Liam', '$2a$12$5jorsqANhQeUqVS5iCo.r.CvA2y90mNJjdJZ87833Ffe3QXk7v9KW');
+
+INSERT INTO UserCredential (staff_id, username, password_hash)
+VALUES (4, 'Emma', '$2a$12$5jorsqANhQeUqVS5iCo.r.CvA2y90mNJjdJZ87833Ffe3QXk7v9KW');
+
+
+INSERT INTO UserCredential (staff_id, username, password_hash)
+VALUES (5, 'Noah', '$2a$12$5jorsqANhQeUqVS5iCo.r.CvA2y90mNJjdJZ87833Ffe3QXk7v9KW');
+
+INSERT INTO UserCredential (staff_id, username, password_hash)
+VALUES (6, 'Ava', '$2a$12$5jorsqANhQeUqVS5iCo.r.CvA2y90mNJjdJZ87833Ffe3QXk7v9KW');
+
+INSERT INTO UserCredential (staff_id, username, password_hash)
+VALUES (7, 'Mia', '$2a$12$5jorsqANhQeUqVS5iCo.r.CvA2y90mNJjdJZ87833Ffe3QXk7v9KW');
+
 
 
 

@@ -3,6 +3,7 @@ using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
 using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dal.Entities;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Helpers;
 using HospitalSchedulingApp.Services.Interfaces;
 using System.Text.Json;
@@ -17,15 +18,18 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
         private readonly ILeaveRequestService _leaveRequestService;
         private readonly ILeaveTypeService _leaveTypeService;
         private readonly ILogger<CancelLeaveRequestToolHandler> _logger;
+        private readonly IUserContextService _userContextService;
 
         public CancelLeaveRequestToolHandler(
             ILeaveRequestService leaveRequestService,
             ILeaveTypeService leaveTypeService,
-            ILogger<CancelLeaveRequestToolHandler> logger)
+            ILogger<CancelLeaveRequestToolHandler> logger,
+            IUserContextService userContextService)
         {
             _leaveRequestService = leaveRequestService;
             _leaveTypeService = leaveTypeService;
             _logger = logger;
+            _userContextService = userContextService;
         }
 
         public string ToolName => CancelLeaveRequestTool.GetTool().Name;
@@ -66,6 +70,16 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 {
                     return CreateError(call.Id, "No existing leave request found for the given period.");
                 }
+
+                // 🔒 Permission check
+                var isEmployee = _userContextService.IsEmployee();
+                var loggedInUserStaffId = _userContextService.GetStaffId();
+
+                if (isEmployee && existing.StaffId != loggedInUserStaffId)
+                {
+                    return CreateError(call.Id, "❌ You are not authorized to cancel this leave request.");
+                }
+
 
                 // ❌ Cancel the leave
                 var cancelled = await _leaveRequestService.CancelLeaveRequestAsync(existing);
