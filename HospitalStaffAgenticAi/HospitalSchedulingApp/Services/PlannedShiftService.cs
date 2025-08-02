@@ -1,4 +1,5 @@
 ﻿using HospitalSchedulingApp.Common;
+using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dal.Repositories;
 using HospitalSchedulingApp.Dtos.Shift.Requests;
@@ -120,6 +121,14 @@ namespace HospitalSchedulingApp.Services
             var staff = await _staffRepo.GetAllAsync();
 
             // Filter by date range
+            if (filter.PlannedShiftId.HasValue)
+                shifts = shifts.Where(s => s.PlannedShiftId == filter.PlannedShiftId.Value).ToList();
+
+            // Filter by date range
+            if (filter.SlotNumber.HasValue)
+                shifts = shifts.Where(s => s.SlotNumber == filter.SlotNumber.Value).ToList();
+
+            // Filter by date range
             if (filter.FromDate.HasValue)
                 shifts = shifts.Where(s => s.ShiftDate >= filter.FromDate.Value).ToList();
 
@@ -180,6 +189,87 @@ namespace HospitalSchedulingApp.Services
             return dtos;
         }
 
-    }
+        // Calendar UI Call
+        public async Task<PlannedShiftDto?> UnassignedShiftFromStaffAsync(int plannedShiftId)
+        {
+            // Fetch the shift
+            var shifts = await _plannedShiftRepo.GetAllAsync();
+            var shift = shifts.FirstOrDefault(s => s.PlannedShiftId == plannedShiftId);
 
+            if (shift == null)
+                throw new Exception($"Planned shift with ID {plannedShiftId} not found.");
+
+            // Unassign the staff
+            shift.AssignedStaffId = null;
+            shift.ShiftStatusId = ShiftStatuses.Vacant;
+
+            _plannedShiftRepo.Update(shift); // Ensure this is an async update if supported
+            await _plannedShiftRepo.SaveAsync();
+
+            // Fetch related metadata
+            var shiftType = await _shiftTypeRepo.GetByIdAsync((int)shift.ShiftTypeId);
+            var department = await _departmentRepo.GetByIdAsync(shift.DepartmentId);
+
+            // Map to DTO
+            var shiftDto = new PlannedShiftDto
+            {
+                PlannedShiftId = shift.PlannedShiftId,
+                ShiftDate = shift.ShiftDate,
+                SlotNumber = shift.SlotNumber,
+                ShiftTypeName = shiftType?.ShiftTypeName ?? "",
+                ShiftDeparmentName = department?.DepartmentName ?? "",
+                AssignedStaffFullName = "" // Shift is now unassigned
+            };
+
+            return shiftDto;
+        }
+
+ 
+        public async Task<PlannedShiftDto?> AssignedShiftToStaffAsync(int plannedShiftId, int staffId)
+        {
+            // Fetch the shift
+            var shift = await _plannedShiftRepo.GetByIdAsync(plannedShiftId);
+            if (shift == null)
+                throw new Exception($"Planned shift with ID {plannedShiftId} not found.");
+
+            // Check if the same staff is already assigned
+            if (shift.AssignedStaffId == staffId)
+                throw new Exception($"Staff ID {staffId} is already assigned to this shift.");
+
+            // Optional: check if the shift is already occupied by someone else
+            if (shift.AssignedStaffId.HasValue && shift.AssignedStaffId != staffId)
+            {
+                // You may choose to log or handle this differently
+                // e.g., force override, or reject
+                throw new Exception($"Shift is already assigned to another staff member (ID {shift.AssignedStaffId}).");
+            }
+
+            // Assign staff
+            shift.AssignedStaffId = staffId;
+            shift.ShiftStatusId = ShiftStatuses.Scheduled;
+
+            _plannedShiftRepo.Update(shift);
+            await _plannedShiftRepo.SaveAsync();
+
+            // Fetch related metadata
+            var shiftTypeTask = _shiftTypeRepo.GetByIdAsync((int)shift.ShiftTypeId);
+            var departmentTask = _departmentRepo.GetByIdAsync(shift.DepartmentId);
+            var staffTask = _staffRepo.GetByIdAsync(staffId);
+
+            await Task.WhenAll(shiftTypeTask, departmentTask, staffTask);
+
+            // Map to DTO
+            var shiftDto = new PlannedShiftDto
+            {
+                PlannedShiftId = shift.PlannedShiftId,
+                ShiftDate = shift.ShiftDate,
+                SlotNumber = shift.SlotNumber,
+                ShiftTypeName = shiftTypeTask.Result?.ShiftTypeName ?? "N/A",
+                ShiftDeparmentName = departmentTask.Result?.DepartmentName ?? "N/A",
+                AssignedStaffFullName = staffTask.Result?.StaffName ?? "Unknown"
+            };
+
+            return shiftDto;
+        }
+    }
 }

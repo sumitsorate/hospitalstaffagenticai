@@ -8,10 +8,11 @@ Leave Request
  - Submit Leave Request
  - Cancel Leave Request Working
  - View Pending,Approve Rejected Leave Request
+ - Approve, Reject Leave Request
 
 Next
  - Fetch Uncovered Shift
- - Approve, Reject Leave Request
+
 
  When Leave Request is approved find impacted shift
  When Leave Request is approved then change the status

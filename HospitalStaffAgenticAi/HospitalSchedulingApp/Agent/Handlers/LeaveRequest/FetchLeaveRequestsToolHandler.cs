@@ -27,16 +27,14 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             try
             {
                 // Parse optional fields
-                int? leaveRequestId = root.TryGetProperty("leaveRequestId", out var leaveRequestIdProp) && leaveRequestIdProp.TryGetInt32(out var lId) ? lId : null;
-
-                // Parse optional fields
-                int? staffId = root.TryGetProperty("staffId", out var staffIdProp) && staffIdProp.TryGetInt32(out var sid) ? sid : null;
+                int? leaveRequestId = root.TryGetProperty("leaveRequestId", out var prop) && prop.TryGetInt32(out var val) ? val : null;
+                int? staffId = root.TryGetProperty("staffId", out var prop2) && prop2.TryGetInt32(out var val2) ? val2 : null;
 
                 LeaveRequestStatuses? leaveStatusId = null;
-                if (root.TryGetProperty("leaveStatusId", out var statusProp) && statusProp.TryGetInt32(out var statusVal) &&
-                    Enum.IsDefined(typeof(LeaveRequestStatuses), statusVal))
+                if (root.TryGetProperty("leaveStatusId", out var prop3) && prop3.TryGetInt32(out var val3) &&
+                    Enum.IsDefined(typeof(LeaveRequestStatuses), val3))
                 {
-                    leaveStatusId = (LeaveRequestStatuses)statusVal;
+                    leaveStatusId = (LeaveRequestStatuses)val3;
                 }
 
                 DateTime? startDate = root.TryGetProperty("startDate", out var startProp) &&
@@ -48,13 +46,14 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                                     ? end : null;
 
                 LeaveType? leaveTypeId = null;
-                if (root.TryGetProperty("leaveTypeId", out var typeProp) && typeProp.TryGetInt32(out var typeVal) &&
+                if (root.TryGetProperty("leaveTypeId", out var typeProp) &&
+                    typeProp.TryGetInt32(out var typeVal) &&
                     Enum.IsDefined(typeof(LeaveType), typeVal))
                 {
                     leaveTypeId = (LeaveType)typeVal;
                 }
 
-                // Construct filter
+                // Build filter object
                 var filter = new LeaveRequestFilter
                 {
                     LeaveRequestId = leaveRequestId,
@@ -65,13 +64,13 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     LeaveTypeId = leaveTypeId
                 };
 
-                // Fetch results
+                // Fetch results from service
                 var leaveRequests = await _leaveRequestService.FetchLeaveRequestsAsync(filter);
 
                 var response = new
                 {
                     success = true,
-                    message = "Leave requests fetched successfully.",
+                    message = "📋 Leave requests fetched successfully!",
                     data = leaveRequests
                 };
 
@@ -83,7 +82,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in FetchLeaveRequestToolHandler");
-                return CreateError(call.Id, "An internal error occurred while fetching leave requests.");
+                return CreateError(call.Id, "❌ An internal error occurred while fetching leave requests.");
             }
         }
 
@@ -97,5 +96,4 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             return new ToolOutput(toolCallId, JsonSerializer.Serialize(error));
         }
     }
-
 }

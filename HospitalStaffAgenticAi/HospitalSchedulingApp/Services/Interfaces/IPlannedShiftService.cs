@@ -12,5 +12,9 @@ namespace HospitalSchedulingApp.Services.Interfaces
 
         Task<List<PlannedShiftDetailDto>> FetchFilteredPlannedShiftsAsync(ShiftFilterDto filter);
 
+        Task<PlannedShiftDto?> UnassignedShiftFromStaffAsync(int plannedShiftId);
+
+        Task<PlannedShiftDto?> AssignedShiftToStaffAsync(int plannedShiftId, int staffId);
+
     }
 }

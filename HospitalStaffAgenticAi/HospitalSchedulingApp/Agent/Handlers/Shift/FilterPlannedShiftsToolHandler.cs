@@ -32,7 +32,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
                     ShiftTypeId = root.TryGetProperty("shiftTypeId", out var typeProp) && typeProp.TryGetInt32(out var shiftTypeId) ? shiftTypeId : null,
                     ShiftStatusId = root.TryGetProperty("shiftStatusId", out var statusProp) && statusProp.TryGetInt32(out var shiftStatusId) ? shiftStatusId : null,
                     FromDate = root.TryGetProperty("fromDate", out var fromProp) && DateTime.TryParse(fromProp.GetString(), out var fromDate) ? fromDate : null,
-                    ToDate = root.TryGetProperty("toDate", out var toProp) && DateTime.TryParse(toProp.GetString(), out var toDate) ? toDate : null
+                    ToDate = root.TryGetProperty("toDate", out var toProp) && DateTime.TryParse(toProp.GetString(), out var toDate) ? toDate : null,
+                    SlotNumber = root.TryGetProperty("slotNumber", out var slotNumberProp) && slotNumberProp.TryGetInt32(out var slotNumber) ? slotNumber : null,
                 };
 
                 _logger.LogInformation("Filtering shifts with: {@Filter}", filter);

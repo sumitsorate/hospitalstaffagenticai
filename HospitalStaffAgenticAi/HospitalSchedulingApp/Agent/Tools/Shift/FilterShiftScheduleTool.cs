@@ -47,7 +47,12 @@ namespace HospitalSchedulingApp.Agent.Tools.Shift
                                 type = "string",
                                 format = "date",
                                 description = "Optional. End of the date range (inclusive), in YYYY-MM-DD format."
-                            }
+                            },
+                            slotNumber = new
+                            {
+                                type = "integer",
+                                description = "Optional. Slot Number to filter shift schedule. if there are 2 shifts on the same date and time. slot number can be use to distinguish shifts"
+                            },
                         }
                     },
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }

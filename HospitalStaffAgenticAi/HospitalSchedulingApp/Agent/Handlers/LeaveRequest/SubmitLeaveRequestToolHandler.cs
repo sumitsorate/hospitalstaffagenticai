@@ -9,7 +9,7 @@ using System.Text.Json;
 namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
 {
     /// <summary>
-    /// Handler for submitting a leave request using the SubmitLeaveRequestTool.
+    /// 🛫 Handler for submitting a leave request using the SubmitLeaveRequestTool.
     /// </summary>
     public class SubmitLeaveRequestToolHandler : IToolHandler
     {
@@ -25,50 +25,46 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
         }
 
         public string ToolName => SubmitLeaveRequestTool.GetTool().Name;
-     
 
         public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
             try
             {
-                // 👤 Get staffId
+                // 🧑‍💼 Validate staff ID
                 if (!root.TryGetProperty("staffId", out var staffIdProp) ||
                     !staffIdProp.TryGetInt32(out var staffId) || staffId <= 0)
                 {
-                    return CreateError(call.Id, "Missing or invalid staffId.");
+                    return CreateError(call.Id, "❌ Missing or invalid staff ID.");
                 }
 
-                // 📅 Parse leaveStart
+                // 📆 Parse leaveStart
                 if (!root.TryGetProperty("leaveStart", out var startProp) ||
                     !DateTime.TryParse(startProp.GetString(), out var leaveStart))
                 {
-                    return CreateError(call.Id, "Invalid or missing leaveStart (format: YYYY-MM-DD).");
+                    return CreateError(call.Id, "❌ Invalid or missing leave start date (expected format: YYYY-MM-DD).");
                 }
 
-                // 📅 Parse leaveEnd
+                // 📆 Parse leaveEnd
                 if (!root.TryGetProperty("leaveEnd", out var endProp) ||
                     !DateTime.TryParse(endProp.GetString(), out var leaveEnd))
                 {
-                    return CreateError(call.Id, "Invalid or missing leaveEnd (format: YYYY-MM-DD).");
+                    return CreateError(call.Id, "❌ Invalid or missing leave end date (expected format: YYYY-MM-DD).");
                 }
 
                 if (leaveEnd < leaveStart)
                 {
-                    return CreateError(call.Id, "leaveEnd must be on or after leaveStart.");
+                    return CreateError(call.Id, "⚠️ Leave end date must be on or after the start date.");
                 }
 
-                // 🏷️ Optional leaveType
-                // 🏷️ Required leaveTypeId
+                // 🏷️ Validate leaveTypeId
                 if (!root.TryGetProperty("leaveTypeId", out var leaveTypeProp) ||
                     !leaveTypeProp.TryGetInt32(out var leaveTypeIdInt) ||
                     !Enum.IsDefined(typeof(LeaveType), leaveTypeIdInt))
                 {
-                    return CreateError(call.Id, "Invalid or missing leaveTypeId. Must be one of the supported leave types.");
+                    return CreateError(call.Id, "❌ Invalid or missing leave type ID. Please select a valid type.");
                 }
 
                 var leaveTypeId = (LeaveType)leaveTypeIdInt;
-
-
 
                 // 📝 Construct leave request
                 var leaveRequest = new LeaveRequests
@@ -77,28 +73,30 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     LeaveStart = leaveStart,
                     LeaveEnd = leaveEnd,
                     LeaveTypeId = leaveTypeId,
-                    LeaveStatusId = Common.Enums.LeaveRequestStatuses.Pending                    
+                    LeaveStatusId = Common.Enums.LeaveRequestStatuses.Pending
                 };
 
+                // 🔍 Check for overlap
                 var isOverlap = await _leaveRequestService.CheckIfLeaveAlreadyExists(leaveRequest);
                 if (isOverlap)
                 {
-                    return CreateError(call.Id, "Leave already exists for the employee for same date");
+                    return CreateError(call.Id, "🚫 A leave already exists for the selected dates.");
                 }
 
+                // ✅ Submit leave request
                 var savedRequest = await _leaveRequestService.SubmitLeaveRequestAsync(leaveRequest);
 
                 var response = new
                 {
                     success = true,
-                    message = "Leave request submitted successfully.",
+                    message = "✅ Leave request submitted successfully!",
                     data = new
                     {
                         savedRequest.Id,
                         savedRequest.StaffId,
                         savedRequest.LeaveStart,
                         savedRequest.LeaveEnd,
-                        Common.Enums.LeaveRequestStatuses.Pending                         
+                        Common.Enums.LeaveRequestStatuses.Pending
                     }
                 };
 
@@ -108,8 +106,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in SubmitLeaveRequestToolHandler");
-                return CreateError(call.Id, "An internal error occurred while submitting the leave request.");
+                _logger.LogError(ex, "❗ Error in SubmitLeaveRequestToolHandler");
+                return CreateError(call.Id, "⚠️ An internal error occurred while submitting the leave request.");
             }
         }
 
@@ -123,6 +121,5 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             return new ToolOutput(toolCallId, JsonSerializer.Serialize(error));
         }
     }
-
 
 }

@@ -3,6 +3,10 @@ using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
 using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dtos.LeaveRequest.Request;
 using HospitalSchedulingApp.Dtos.LeaveRequest.Response;
+using HospitalSchedulingApp.Dtos.Shift.Requests;
+using HospitalSchedulingApp.Dtos.Shift.Response;
+using HospitalSchedulingApp.Dtos.Staff.Requests;
+using HospitalSchedulingApp.Dtos.Staff.Response;
 using HospitalSchedulingApp.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -12,14 +16,20 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
     public class ApproveOrRejectLeaveRequestToolHandler : IToolHandler
     {
         private readonly ILeaveRequestService _leaveRequestService;
+        private readonly IPlannedShiftService _plannedShiftService;
+        private readonly IStaffService _staffService;
         private readonly ILogger<ApproveOrRejectLeaveRequestToolHandler> _logger;
 
         public ApproveOrRejectLeaveRequestToolHandler(
             ILeaveRequestService leaveRequestService,
-            ILogger<ApproveOrRejectLeaveRequestToolHandler> logger)
+            ILogger<ApproveOrRejectLeaveRequestToolHandler> logger,
+            IPlannedShiftService plannedShiftService,
+            IStaffService staffService)
         {
             _leaveRequestService = leaveRequestService;
             _logger = logger;
+            _plannedShiftService = plannedShiftService;
+            _staffService = staffService;
         }
 
         public string ToolName => ApproveOrRejectLeaveRequestTool.GetTool().Name;
@@ -28,6 +38,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
         {
             try
             {
+                // Extract inputs
                 int? leaveRequestId = root.TryGetProperty("leaveRequestId", out var idProp) && idProp.TryGetInt32(out var lid) ? lid : null;
                 int? staffId = root.TryGetProperty("staffId", out var staffProp) && staffProp.TryGetInt32(out var sid) ? sid : null;
                 int? leaveTypeId = root.TryGetProperty("leaveTypeId", out var typeProp) && typeProp.TryGetInt32(out var ltid) ? ltid : null;
@@ -40,23 +51,15 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                                     DateTime.TryParse(endProp.GetString(), out var end)
                                     ? end : null;
 
-                LeaveRequestStatuses? newStatus = null;
-                if (root.TryGetProperty("newStatus", out var statusProp))
+                // Validate status
+                if (!root.TryGetProperty("newStatus", out var statusProp) ||
+                    !Enum.TryParse<LeaveRequestStatuses>(statusProp.GetString(), true, out var newStatus) ||
+                    (newStatus != LeaveRequestStatuses.Approved && newStatus != LeaveRequestStatuses.Rejected))
                 {
-                    var statusString = statusProp.GetString();
-                    if (Enum.TryParse<LeaveRequestStatuses>(statusString, true, out var statusEnum) &&
-                        (statusEnum == LeaveRequestStatuses.Approved || statusEnum == LeaveRequestStatuses.Rejected))
-                    {
-                        newStatus = statusEnum;
-                    }
+                    return CreateError(call.Id, "❌ Invalid or missing `newStatus`. It must be either 'Approved' or 'Rejected'.");
                 }
 
-                if (!newStatus.HasValue)
-                {
-                    return CreateError(call.Id, "Invalid or missing newStatus. It must be either 'Approved' or 'Rejected'.");
-                }
-
-                // Build filter
+                // Filter leave requests
                 var leaveRequestFilter = new LeaveRequestFilter
                 {
                     LeaveRequestId = leaveRequestId,
@@ -67,26 +70,68 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 };
 
                 var matchingRequests = await _leaveRequestService.FetchLeaveRequestsAsync(leaveRequestFilter);
-
-                if (!matchingRequests.Any())
+                if (matchingRequests == null || !matchingRequests.Any())
                 {
-                    return CreateError(call.Id, "No pending leave requests matched the given criteria.");
+                    return CreateError(call.Id, "❌ No matching pending leave request found.");
                 }
 
-                // Use the first matched leave request
                 var requestToUpdate = matchingRequests.First();
-                LeaveRequestDetailsDto? updatedRequest = await _leaveRequestService.UpdateStatusAsync(requestToUpdate.LeaveRequestId, newStatus.Value);
-
+                var updatedRequest = await _leaveRequestService.UpdateStatusAsync(requestToUpdate.LeaveRequestId, newStatus);
                 if (updatedRequest == null)
                 {
-                    return CreateError(call.Id, "Failed to update leave request. It may not exist or has already been processed.");
+                    return CreateError(call.Id, "❌ Failed to update leave request. It may already be processed or does not exist.");
+                }
+
+                // Only do shift replacement suggestion if approved
+                var shiftReplacementOptions = new List<ShiftReplacementOptions>();
+
+                if (newStatus == LeaveRequestStatuses.Approved)
+                {
+                    var shiftFilter = new ShiftFilterDto
+                    {
+                        StaffId = updatedRequest.StaffId,
+                        FromDate = updatedRequest.LeaveStart,
+                        ToDate = updatedRequest.LeaveEnd
+                    };
+
+                    var impactedShifts = await _plannedShiftService.FetchFilteredPlannedShiftsAsync(shiftFilter);
+
+                    foreach (var impactedShift in impactedShifts)
+                    {
+                        // Unassign Shifts
+                        var unassignShift = await _plannedShiftService
+                            .UnassignedShiftFromStaffAsync(impactedShift.PlannedShiftId);
+
+                        var availableStaffFilter = new AvailableStaffFilterDto
+                        {
+                            StartDate = DateOnly.FromDateTime(impactedShift.ShiftDate),
+                            ShiftTypeId = impactedShift.ShiftTypeId,
+                            DepartmentId = impactedShift.DepartmentId,
+                            EndDate = DateOnly.FromDateTime(impactedShift.ShiftDate)
+                        };
+
+                        // Replace shifts with staff
+                        var replacements = await _staffService.SearchAvailableStaffAsync(availableStaffFilter);
+
+                        shiftReplacementOptions.Add(new ShiftReplacementOptions
+                        {
+                            PlannedShiftId = impactedShift.PlannedShiftId,
+                            DepartmentId = impactedShift.DepartmentId,
+                            DepartmentName = impactedShift.ShiftDeparmentName,
+                            ShiftDate = impactedShift.ShiftDate,
+                            ShiftTypeId = impactedShift.ShiftTypeId,
+                            ShiftTypeName = impactedShift.ShiftTypeName,
+                            ShiftReplacements = replacements?.Take(3).ToList() ?? new()
+                        });
+                    }
                 }
 
                 var response = new
                 {
                     success = true,
-                    message = $"Leave request {newStatus.Value.ToString().ToLower()} successfully.",
-                    leaveRequest = updatedRequest
+                    message = $"✅ Leave request has been successfully **{newStatus.ToString().ToLower()}**.",
+                    leaveRequest = updatedRequest,
+                    impactedShifts = shiftReplacementOptions
                 };
 
                 string json = JsonSerializer.Serialize(response);
@@ -97,7 +142,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in ApproveOrRejectLeaveRequestToolHandler");
-                return CreateError(call.Id, "An internal error occurred while processing the leave request.");
+                return CreateError(call.Id, "❌ An internal error occurred while processing the leave request.");
             }
         }
 
