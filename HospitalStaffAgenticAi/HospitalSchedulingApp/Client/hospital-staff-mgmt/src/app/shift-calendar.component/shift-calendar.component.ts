@@ -6,18 +6,20 @@ import interactionPlugin from '@fullcalendar/interaction';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { ShiftScheduleService } from '../services/shift-schedule.service';
 import { PlannedShiftDto } from '../models/planned-shift.dto';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-shift-calendar',
   standalone: true,
-  imports: [FullCalendarModule],
+  imports: [FullCalendarModule, CommonModule],
   templateUrl: './shift-calendar.component.html',
   styleUrl: './shift-calendar.component.css'
 })
 export class ShiftCalendarComponent implements OnInit {
 
+  isLoading: boolean = false;
   constructor(private scheduleService: ShiftScheduleService, private cdRef: ChangeDetectorRef) { }
-
+@ViewChild('calendar') calendarComponent!: FullCalendarComponent;
   calendarOptions: CalendarOptions = {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
     initialView: 'dayGridMonth',
@@ -65,29 +67,41 @@ export class ShiftCalendarComponent implements OnInit {
     // }
   };
 
+  refreshCalendar() {  
+     this.loadCalendar(); 
+  }
+
+loadCalendar() {
+  this.isLoading = true; // 🔄 Start spinner
+  const startDate = '2025-07-01';
+  const endDate = '2025-07-31';
+
+  this.scheduleService.fetchShiftInformation().subscribe({
+    next: (shifts: PlannedShiftDto[]) => {
+      const events = this.transformShiftsToEvents(shifts);
+      console.log('Fetched shifts:', events);
+
+      this.calendarOptions = {
+        ...this.calendarOptions,
+        events: events
+      };
+      this.cdRef.detectChanges();
+    },
+    error: err => {
+      console.error('Failed to fetch shifts:', err);
+    },
+    complete: () => {
+      this.isLoading = false; // ✅ Stop spinner after both success and error
+      this.cdRef.detectChanges();
+    }
+  });
+}
+
+
 
 
   ngOnInit(): void {
-    const startDate = '2025-07-01';
-    const endDate = '2025-07-31';
-
-    this.scheduleService.fetchShiftInformation().subscribe({
-      next: (shifts: PlannedShiftDto[]) => {
-        const events = this.transformShiftsToEvents(shifts);
-        console.log('Fetched shifts:', events);
-
-        // Important: Create a new object to trigger change detection
-        this.calendarOptions = {
-          ...this.calendarOptions,
-          events: events
-        };
-        console.log('Updated calendar options:', this.calendarOptions);
-        this.cdRef.detectChanges(); // Ensure view updates
-      },
-      error: err => {
-        console.error('Failed to fetch shifts:', err);
-      }
-    });
+    this.loadCalendar();
   }
 
   handleDateClick(arg: any): void {

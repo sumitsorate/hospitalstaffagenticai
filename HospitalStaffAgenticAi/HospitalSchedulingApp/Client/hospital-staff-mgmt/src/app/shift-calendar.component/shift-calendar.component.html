@@ -1,3 +1,21 @@
-<div class="calendar-container">
+<div class="calendar-container position-relative border rounded shadow-sm p-3 bg-white">
+
+  <!-- Top-right Refresh button -->
+  <div class="d-flex justify-content-end align-items-center mb-2">
+    <button class="btn btn-outline-primary btn-sm d-flex align-items-center" 
+            (click)="refreshCalendar()" 
+            [disabled]="isLoading"
+            title="Refresh calendar view">
+      🔄 Refresh
+      <span *ngIf="isLoading" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true"></span>
+    </button>
+  </div>
+
+  <!-- Optional overlay spinner (covers calendar while loading) -->
+  <div *ngIf="isLoading" class="loading-overlay d-flex justify-content-center align-items-center">
+    <div class="spinner-border text-primary" role="status" aria-label="Loading calendar..."></div>
+  </div>
+
+  <!-- FullCalendar component -->
   <full-calendar #calendar [options]="calendarOptions"></full-calendar>
 </div>
