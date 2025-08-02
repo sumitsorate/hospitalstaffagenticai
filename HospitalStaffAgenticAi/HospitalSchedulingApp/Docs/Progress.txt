@@ -9,6 +9,7 @@ Leave Request
  - Cancel Leave Request Working
  - View Pending,Approve Rejected Leave Request
  - Approve, Reject Leave Request
+ - Assign shift to Searched Available Staff
 
 Next
  - Fetch Uncovered Shift
@@ -17,4 +18,4 @@ Next
  When Leave Request is approved find impacted shift
  When Leave Request is approved then change the status
  of leave request to Vacant
- Assign shift to Searched Available Staff
+ 
