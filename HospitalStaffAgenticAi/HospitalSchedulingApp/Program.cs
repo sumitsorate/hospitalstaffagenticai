@@ -125,6 +125,8 @@ builder.Services.AddScoped<IToolHandler, ResolveLeaveTypeToolHandler>();
 builder.Services.AddScoped<IToolHandler, FetchLeaveRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, ApproveOrRejectLeaveRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, AssignShiftToStaffToolHandler>();
+builder.Services.AddScoped<IAgentInsightsService, AgentInsightsService>();
+
 
 
 builder.Services.AddHttpContextAccessor();

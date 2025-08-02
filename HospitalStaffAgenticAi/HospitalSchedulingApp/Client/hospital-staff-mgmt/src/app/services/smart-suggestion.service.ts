@@ -19,7 +19,7 @@ export class SmartSuggestionsService {
     return this.http.get<{ message: string }>('http://localhost:5029/api/SmartSuggestions/agentinsights');
   }
   getDailySummary(): Observable<AgentSummaryResponse> {
-    return this.http.get<AgentSummaryResponse>('http://localhost:5029/api/SmartSuggestions/agent-scheduler');
+    return this.http.get<AgentSummaryResponse>('http://localhost:5029/api/AgentChat/daily-summary');
   }
 }
 

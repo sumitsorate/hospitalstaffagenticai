@@ -33,17 +33,17 @@ export class Chat implements OnInit {
     private ngZone: NgZone, private cdRef: ChangeDetectorRef) { }
 
   ngOnInit(): void {
-    //this.loadSmartSuggestions();
-    this.sendMessage("Hi")
+    this.loadSmartSuggestions();
+    //this.sendMessage("Hi")
 
   }
 
   handleActionClick(s: SmartSuggestion): void {
-    // const actionMessage = {
-    //   type: s.type,
-    //   actionName: s.actionName,
-    //   data: s.actionData || {}
-    // };
+    const actionMessage = {
+      type: s.type,
+      actionName: s.actionName,
+      data: s.actionData || {}
+    };
 
     // const messagePayload = `ACTION::${JSON.stringify(actionMessage)}`;
 
@@ -53,15 +53,15 @@ export class Chat implements OnInit {
 
 
   loadSmartSuggestions(): void {
-    // Load proactive action suggestions
-    this.smartSuggestionService.getSmartSuggestions().subscribe({
-      next: (data: SmartSuggestion[]) => {
-        this.suggestions = data;
-      },
-      error: (err: any) => {
-        console.error('Failed to load smart suggestions', err);
-      }
-    });
+    // // Load proactive action suggestions
+    // this.smartSuggestionService.getSmartSuggestions().subscribe({
+    //   next: (data: SmartSuggestion[]) => {
+    //     this.suggestions = data;
+    //   },
+    //   error: (err: any) => {
+    //     console.error('Failed to load smart suggestions', err);
+    //   }
+    // });
 
     // Show typing animation first
     this.isWaiting = true;
@@ -194,7 +194,7 @@ export class Chat implements OnInit {
           // Clear previous suggestions/messages if needed
     this.messages = [];
     this.suggestions = [];
-     // this.loadSmartSuggestions(); // Reload suggestions when chat is opened
+     this.loadSmartSuggestions(); // Reload suggestions when chat is opened
       this.scrollToBottom(); // Ensure chat scrolls to bottom on open
     }
   }

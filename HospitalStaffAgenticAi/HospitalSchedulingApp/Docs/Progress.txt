@@ -10,12 +10,17 @@ Leave Request
  - View Pending,Approve Rejected Leave Request
  - Approve, Reject Leave Request
  - Assign shift to Searched Available Staff
+ - When Leave Request is approved find impacted shift
+ - When Leave Request is approved then change the status
+   of leave request to Vacant
 
 Next
- - Fetch Uncovered Shift
+ - FetchSmartSuggestion: Fetch Uncovered Shift, View Pending Leave Request
+ - Conditional loading of messages
+ - Correct threading logic
+ - Proper message display
+ - Login and Logout issie
 
 
- When Leave Request is approved find impacted shift
- When Leave Request is approved then change the status
- of leave request to Vacant
+
  

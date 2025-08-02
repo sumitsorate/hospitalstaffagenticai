@@ -19,16 +19,19 @@ namespace HospitalSchedulingApp.Controllers
     {
         private readonly IAgentService _agentService;
         private readonly IAgentConversationService _agentConversationService;
+        private readonly IAgentInsightsService _agentInsightsService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AuthController"/> class.
         /// </summary>
         /// <param name="agentService">Service to handle agent communication.</param>
         public AgentChatController(IAgentService agentService,
-            IAgentConversationService agentConversationService) 
+            IAgentConversationService agentConversationService,
+            IAgentInsightsService agentInsightsService) 
         {
             _agentService = agentService;
             _agentConversationService = agentConversationService;
+            _agentInsightsService = agentInsightsService;
         }
 
         /// <summary>
@@ -54,5 +57,13 @@ namespace HospitalSchedulingApp.Controllers
             return BadRequest("No valid response from agent.");
         }
 
+
+        // Backend controller
+        [HttpGet("daily-summary")]
+        public async Task<IActionResult> GetDailySchedulerSummaryAsync()
+        {
+            var summary = await _agentInsightsService.GetDailySchedulerSummaryAsync();
+            return Ok(summary);
+        }
     }
 }
