@@ -43,16 +43,25 @@ namespace HospitalSchedulingApp.Agent.Services
         /// Fetches the thread ID associated with the logged-in user, if it exists.
         /// </summary>
         /// <returns>The thread ID as a string, or null if no entry exists.</returns>
-        public async Task<string?> FetchThreadIdForLoggedInUser()
+        public async Task<string?> FetchThreadIdForLoggedInUser(int? staffId = null)
         {
-            var userId = _userContextService.GetStaffId();
+            int? userId;
+
+            if (staffId.HasValue)
+            {
+                userId = staffId.Value;
+            }
+            else
+            {
+                userId = _userContextService.GetStaffId();
+            }
 
             var agentConversation = (await _agentConversationRepo.GetAllAsync())
                 .FirstOrDefault(x => x.UserId == userId.ToString());
 
-            // May return null if no matching conversation is found
             return agentConversation?.ThreadId;
         }
+
 
         /// <summary>
         /// Fetches the entire agent conversation info for the logged-in user.

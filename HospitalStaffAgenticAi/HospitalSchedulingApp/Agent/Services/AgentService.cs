@@ -61,34 +61,47 @@ namespace HospitalSchedulingApp.Agent.Services
         public async Task<string> FetchOrCreateThreadForUser(int? staffId = null)
         {
             try
-            { 
-                //if (staffId == null)
-                //{
-                //    _logger.LogWarning("StaffId not found in user context.");
-                //    throw new InvalidOperationException("Cannot create or fetch thread: Staff ID is null.");
-                //}
-
-                var existingThreadId = await _agentConversationService.FetchThreadIdForLoggedInUser();
-
-                if (!string.IsNullOrEmpty(existingThreadId))
+            {
+                // Try to resolve staffId from context if not passed
+                if (staffId == null || staffId <= 0)
                 {
-                    _logger.LogInformation("Existing thread found for StaffId {StaffId}: {ThreadId}", staffId, existingThreadId);
-                    return existingThreadId;
+                    var contextStaffId = _userContextService.GetStaffId();
+                    if (contextStaffId > 0)
+                        staffId = contextStaffId;
                 }
 
-                // No thread found, create new
+                // If staffId is known, check for existing thread
+                if (staffId.HasValue && staffId > 0)
+                {
+                    var existingThreadId = await _agentConversationService.FetchThreadIdForLoggedInUser(staffId.Value);
+                    if (!string.IsNullOrEmpty(existingThreadId))
+                    {
+                        _logger.LogInformation("Existing thread found for StaffId {StaffId}: {ThreadId}", staffId, existingThreadId);
+                        return existingThreadId;
+                    }
+                }
+
+                // No thread found — create a new one
                 var newThread = await CreateThreadAsync();
 
-                var agentConversation = new AgentConversations
+                // If we have staffId, store the conversation
+                if (staffId.HasValue && staffId > 0)
                 {
-                    UserId = staffId.ToString(),
-                    ThreadId = newThread.Id,
-                    CreatedAt = DateTime.UtcNow
-                };
+                    var agentConversation = new AgentConversations
+                    {
+                        UserId = staffId.Value.ToString(), // since UserId == StaffId
+                        ThreadId = newThread.Id,
+                        CreatedAt = DateTime.UtcNow
+                    };
 
-                await _agentConversationService.AddAgentConversation(agentConversation);
+                    await _agentConversationService.AddAgentConversation(agentConversation);
+                    _logger.LogInformation("New thread {ThreadId} created and saved for StaffId {StaffId}", newThread.Id, staffId);
+                }
+                else
+                {
+                    _logger.LogInformation("New thread {ThreadId} created for unauthenticated user (no staffId yet)", newThread.Id);
+                }
 
-                _logger.LogInformation("New thread {ThreadId} created and saved for StaffId {StaffId}", newThread.Id, staffId);
                 return newThread.Id;
             }
             catch (Exception ex)
@@ -103,7 +116,8 @@ namespace HospitalSchedulingApp.Agent.Services
         /// </summary>
         public async Task DeleteThreadForUserAsync()
         {
-            var threadId = await _agentConversationService.FetchThreadIdForLoggedInUser();
+            var staffId = _userContextService.GetStaffId();
+            var threadId = await _agentConversationService.FetchThreadIdForLoggedInUser(staffId);
             if (string.IsNullOrWhiteSpace(threadId))
             {
                 _logger.LogWarning("ThreadId is null or empty. Skipping thread deletion.");
