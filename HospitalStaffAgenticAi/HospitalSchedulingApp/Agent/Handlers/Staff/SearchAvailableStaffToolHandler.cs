@@ -1,103 +1,144 @@
 ﻿using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.Handlers;
 using HospitalSchedulingApp.Agent.Tools.Staff;
-using HospitalSchedulingApp.Dtos.Staff;
 using HospitalSchedulingApp.Dtos.Staff.Requests;
 using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
-using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-public class SearchAvailableStaffToolHandler : IToolHandler
+namespace HospitalSchedulingApp.Agent.Handlers.Staff
 {
-    private readonly IStaffService _staffService;
-    private readonly ILogger<SearchAvailableStaffToolHandler> _logger;
-    private readonly IUserContextService _userContextService;
-
-    public SearchAvailableStaffToolHandler(
-        IStaffService staffService,
-        ILogger<SearchAvailableStaffToolHandler> logger,
-        IUserContextService userContextService)
+    /// <summary>
+    /// Handles the execution of the searchAvailableStaff tool for schedulers.
+    /// Allows searching for available staff between a specified date range with optional department and shift type filters.
+    /// </summary>
+    public class SearchAvailableStaffToolHandler : IToolHandler
     {
-        _staffService = staffService;
-        _logger = logger;
-        _userContextService = userContextService;
-    }
+        private readonly IStaffService _staffService;
+        private readonly ILogger<SearchAvailableStaffToolHandler> _logger;
+        private readonly IUserContextService _userContextService;
 
-    public string ToolName => SearchAvailableStaffTool.GetTool().Name;
-
-    public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
-    {
-        var isScheduler = _userContextService.IsScheduler();
-        if (!isScheduler)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SearchAvailableStaffToolHandler"/> class.
+        /// </summary>
+        public SearchAvailableStaffToolHandler(
+            IStaffService staffService,
+            ILogger<SearchAvailableStaffToolHandler> logger,
+            IUserContextService userContextService)
         {
-            return CreateError(call.Id, "🚫 Oops! You're not authorized to perform this action. Let me know if you need help with something else.");
+            _staffService = staffService;
+            _logger = logger;
+            _userContextService = userContextService;
         }
-        try
+
+        /// <summary>
+        /// Gets the tool name used by the agent runtime.
+        /// </summary>
+        public string ToolName => SearchAvailableStaffTool.GetTool().Name;
+
+        /// <summary>
+        /// Handles the tool call by validating input, verifying permissions, and returning available staff.
+        /// </summary>
+        /// <param name="call">The function tool call object.</param>
+        /// <param name="root">The JSON input payload.</param>
+        /// <returns>A structured <see cref="ToolOutput"/> containing available staff or an error.</returns>
+        public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
-            if (!root.TryGetProperty("startDate", out var startDateProp) ||
-                !root.TryGetProperty("endDate", out var endDateProp))
+            var isScheduler = _userContextService.IsScheduler();
+            if (!isScheduler)
             {
-                return CreateError(call.Id, "startDate and endDate are required.");
+                _logger.LogWarning("Unauthorized access attempt to searchAvailableStaff by a non-scheduler.");
+                return CreateError(call.Id, "🚫 Oops! You're not authorized to perform this action. Let me know if you need help with something else.");
             }
 
-            var filterDto = new AvailableStaffFilterDto
+            try
             {
-                StartDate = DateOnly.Parse(startDateProp.GetString()!),
-                EndDate = DateOnly.Parse(endDateProp.GetString()!),
-                ShiftTypeId = root.TryGetProperty("shiftTypeId", out var shiftTypeProp) && shiftTypeProp.ValueKind == JsonValueKind.Number
-                    ? shiftTypeProp.GetInt32()
-                    : (int?)null,
-                DepartmentId = root.TryGetProperty("departmentId", out var deptProp) && deptProp.ValueKind == JsonValueKind.Number
-                    ? deptProp.GetInt32()
-                    : (int?)null
-            };
+                if (!root.TryGetProperty("startDate", out var startDateProp) ||
+                    !root.TryGetProperty("endDate", out var endDateProp))
+                {
+                    _logger.LogWarning("Missing required date range parameters in searchAvailableStaff tool call.");
+                    return CreateError(call.Id, "startDate and endDate are required.");
+                }
 
-            var dateWiseResult = await _staffService.SearchAvailableStaffAsync(filterDto);
+                if (!DateOnly.TryParse(startDateProp.GetString(), out var startDate) ||
+                    !DateOnly.TryParse(endDateProp.GetString(), out var endDate))
+                {
+                    _logger.LogWarning("Invalid date format received in searchAvailableStaff.");
+                    return CreateError(call.Id, "Invalid date format for startDate or endDate.");
+                }
 
-            if (dateWiseResult == null || dateWiseResult.All(r => r?.AvailableStaff.Count == 0))
-            {
-                _logger.LogInformation("searchAvailableStaff: No available staff found for given filter.");
-                return CreateError(call.Id, "No available staff found for the given criteria.");
+                if (startDate > endDate)
+                {
+                    _logger.LogWarning("Invalid date range: Start date is after end date.");
+                    return CreateError(call.Id, "Start date must be before or equal to end date.");
+                }
+
+                var filterDto = new AvailableStaffFilterDto
+                {
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    ShiftTypeId = root.TryGetProperty("shiftTypeId", out var shiftTypeProp) && shiftTypeProp.ValueKind == JsonValueKind.Number
+                        ? shiftTypeProp.GetInt32()
+                        : (int?)null,
+                    DepartmentId = root.TryGetProperty("departmentId", out var deptProp) && deptProp.ValueKind == JsonValueKind.Number
+                        ? deptProp.GetInt32()
+                        : (int?)null
+                };
+
+                _logger.LogInformation("Searching available staff: start={StartDate}, end={EndDate}, dept={DepartmentId}, shift={ShiftTypeId}",
+                    filterDto.StartDate, filterDto.EndDate, filterDto.DepartmentId, filterDto.ShiftTypeId);
+
+                var dateWiseResult = await _staffService.SearchAvailableStaffAsync(filterDto);
+
+                if (dateWiseResult == null || dateWiseResult.All(r => r?.AvailableStaff.Count == 0))
+                {
+                    _logger.LogInformation("searchAvailableStaff: No available staff found for given filter.");
+                    return CreateError(call.Id, "No available staff found for the given criteria.");
+                }
+
+                var output = new
+                {
+                    success = true,
+                    availableStaff = dateWiseResult
+                        .Where(r => r != null && r.AvailableStaff.Count > 0)
+                        .ToDictionary(
+                            r => r!.Date.ToString("yyyy-MM-dd"),
+                            r => r.AvailableStaff.Select(s => new
+                            {
+                                staffId = s.StaffId,
+                                staffName = s.StaffName,
+                                roleId = s.RoleId,
+                                roleName = s.RoleName,
+                                departmentId = s.StaffDepartmentId,
+                                departmentName = s.StaffDepartmentName,
+                                isActive = s.IsActive
+                            })
+                        )
+                };
+
+                return new ToolOutput(call.Id, JsonSerializer.Serialize(output));
             }
-
-            var output = new
+            catch (Exception ex)
             {
-                success = true,
-                availableStaff = dateWiseResult
-                    .Where(r => r != null && r.AvailableStaff.Count > 0)
-                    .ToDictionary(
-                        r => r!.Date.ToString("yyyy-MM-dd"),
-                        r => r.AvailableStaff.Select(s => new
-                        {
-                            staffId = s.StaffId,
-                            staffName = s.StaffName,
-                            roleId = s.RoleId,
-                            roleName = s.RoleName,
-                            departmentId = s.StaffDepartmentId,
-                            departmentName = s.StaffDepartmentName,
-                            isActive = s.IsActive
-                        })
-                    )
-            };
-
-            return new ToolOutput(call.Id, JsonSerializer.Serialize(output));
+                _logger.LogError(ex, "Unhandled exception in searchAvailableStaff tool handler.");
+                return CreateError(call.Id, "An error occurred while processing the request.");
+            }
         }
-        catch (Exception ex)
+
+        /// <summary>
+        /// Creates a structured error output for the tool call.
+        /// </summary>
+        /// <param name="callId">The tool call ID.</param>
+        /// <param name="message">The error message to return.</param>
+        /// <returns>A structured <see cref="ToolOutput"/> error response.</returns>
+        private ToolOutput CreateError(string callId, string message)
         {
-            _logger.LogError(ex, "Error in searchAvailableStaff tool handler.");
-            return CreateError(call.Id, "An error occurred while processing the request.");
+            var errorJson = JsonSerializer.Serialize(new
+            {
+                success = false,
+                error = message
+            });
+
+            return new ToolOutput(callId, errorJson);
         }
-    }
-
-    private ToolOutput CreateError(string callId, string message)
-    {
-        var errorJson = JsonSerializer.Serialize(new
-        {
-            success = false,
-            error = message
-        });
-
-        return new ToolOutput(callId, errorJson);
     }
 }

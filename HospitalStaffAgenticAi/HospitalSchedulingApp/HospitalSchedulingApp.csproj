@@ -29,4 +29,10 @@
     <Folder Include="Client\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="SystemPrompt\HospitalAgentPrompt.docx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

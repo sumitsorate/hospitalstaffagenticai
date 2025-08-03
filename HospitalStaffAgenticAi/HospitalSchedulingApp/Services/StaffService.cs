@@ -5,18 +5,14 @@ using HospitalSchedulingApp.Dtos.Staff;
 using HospitalSchedulingApp.Dtos.Staff.Requests;
 using HospitalSchedulingApp.Dtos.Staff.Response;
 using HospitalSchedulingApp.Services.Interfaces;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using System.Data;
-using System.Globalization;
-using System.Reflection.Metadata;
-using System.Reflection.PortableExecutable;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace HospitalSchedulingApp.Services
 {
+    /// <summary>
+    /// Service responsible for staff-related operations including availability and filtering.
+    /// </summary>
     public class StaffService : IStaffService
     {
         private readonly IRepository<Department> _departmentRepo;
@@ -26,17 +22,21 @@ namespace HospitalSchedulingApp.Services
         private readonly IRepository<LeaveRequests> _leaveRepo;
         private readonly IRepository<NurseAvailability> _availabilityRepo;
         private readonly IShiftTypeService _shiftTypeService;
+        private readonly ILogger<StaffService> _logger;
 
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StaffService"/> class.
+        /// </summary>
         public StaffService(
-                 IRepository<Department> departmentRepo,
-                 IRepository<Role> roleRepo,
-                 IRepository<Staff> staffRepo,
-                 IRepository<PlannedShift> shiftRepo,
-                 IRepository<LeaveRequests> leaveRepo,
-                 IRepository<NurseAvailability> availabilityRepo,
-                 IRepository<ShiftType> shiftTypeRepo,
-                 IShiftTypeService shiftTypeService)
+            IRepository<Department> departmentRepo,
+            IRepository<Role> roleRepo,
+            IRepository<Staff> staffRepo,
+            IRepository<PlannedShift> shiftRepo,
+            IRepository<LeaveRequests> leaveRepo,
+            IRepository<NurseAvailability> availabilityRepo,
+            IRepository<ShiftType> shiftTypeRepo,
+            IShiftTypeService shiftTypeService,
+            ILogger<StaffService> logger)
         {
             _departmentRepo = departmentRepo;
             _roleRepo = roleRepo;
@@ -45,8 +45,14 @@ namespace HospitalSchedulingApp.Services
             _leaveRepo = leaveRepo;
             _availabilityRepo = availabilityRepo;
             _shiftTypeService = shiftTypeService;
+            _logger = logger;
         }
 
+        /// <summary>
+        /// Fetches a list of active staff whose names match the provided name pattern.
+        /// </summary>
+        /// <param name="namePart">Partial or full name to search for.</param>
+        /// <returns>List of matching active staff.</returns>
         public async Task<List<StaffDto?>> FetchActiveStaffByNamePatternAsync(string namePart)
         {
             if (string.IsNullOrWhiteSpace(namePart))
@@ -71,10 +77,9 @@ namespace HospitalSchedulingApp.Services
                 })
                 .ToList();
 
-
+            _logger.LogInformation("Fetched {Count} staff matching name pattern: {Pattern}", filtered.Count, namePart);
             return filtered;
         }
-
 
         public async Task<List<AvailableStaffPerDateDto?>> SearchAvailableStaffAsync(AvailableStaffFilterDto filter)
         {
@@ -95,47 +100,66 @@ namespace HospitalSchedulingApp.Services
             foreach (var date in dateRange)
             {
                 var shiftDate = date.ToDateTime(TimeOnly.MinValue);
+                var previousDate = shiftDate.AddDays(-1);
 
                 var availableStaffForDate = staffList
                     .Where(s => s.IsActive)
                     .Where(s =>
                     {
-                        // Filter by department if specified
                         if (filter.DepartmentId.HasValue && s.StaffDepartmentId != filter.DepartmentId.Value)
                             return false;
 
-                        // Check availability
                         var isAvailable = !availabilities.Any(a =>
                             a.StaffId == s.StaffId &&
                             a.AvailableDate == shiftDate &&
                             !a.IsAvailable);
 
-                        // Check leave
                         var isOnLeave = leaveRequests.Any(l =>
                             l.StaffId == s.StaffId &&
                             l.LeaveStatusId == LeaveRequestStatuses.Approved &&
                             shiftDate >= l.LeaveStart &&
                             shiftDate <= l.LeaveEnd);
 
-                        // Check shift conflict (only if shift type specified)
-                        var isOccupied = filter.ShiftTypeId.HasValue &&
-                                         shifts.Any(ps =>
-                                             ps.AssignedStaffId == s.StaffId &&
-                                             ps.ShiftDate == shiftDate &&
-                                             ps.ShiftTypeId ==(ShiftTypes) filter.ShiftTypeId.Value);
+                        if (!isAvailable || isOnLeave)
+                            return false;
 
-                        return isAvailable && !isOnLeave && !isOccupied;
+                        // Get shifts of this staff
+                        var todaysShifts = shifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == shiftDate).ToList();
+                        var yesterdaysShifts = shifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == previousDate).ToList();
+
+                        if (filter.ShiftTypeId.HasValue)
+                        {
+                            var shiftType = (ShiftTypes)filter.ShiftTypeId.Value;
+
+                            // Check same-day conflict
+                            if (todaysShifts.Any(ps =>
+                                ps.ShiftTypeId == shiftType || // Same shift
+                                IsBackToBack(ps.ShiftTypeId, shiftType))) // Fatigue risk
+                            {
+                                return false;
+                            }
+
+                            // Special check for Morning shift after previous day's Night
+                            if (shiftType == ShiftTypes.Morning &&
+                                yesterdaysShifts.Any(ps => ps.ShiftTypeId == ShiftTypes.Night))
+                            {
+                                return false;
+                            }
+                        }
+
+                        return true;
                     })
                     .Select(s =>
                     {
                         departmentMap.TryGetValue(s.StaffDepartmentId, out var deptName);
 
+                        
+
                         return new StaffDto
                         {
                             StaffId = s.StaffId,
                             StaffName = s.StaffName,
-                            RoleId = s.RoleId,
-                            RoleName = string.Empty,
+                            RoleId = s.RoleId, 
                             StaffDepartmentId = s.StaffDepartmentId,
                             StaffDepartmentName = deptName ?? string.Empty,
                             IsActive = s.IsActive
@@ -148,9 +172,22 @@ namespace HospitalSchedulingApp.Services
                     Date = date,
                     AvailableStaff = availableStaffForDate
                 });
+
+                _logger.LogDebug("Date: {Date}, Available staff count: {Count}", date, availableStaffForDate.Count);
             }
 
+            _logger.LogInformation("Completed search for available staff from {Start} to {End}", filter.StartDate, filter.EndDate);
             return result;
+        }
+
+        /// <summary>
+        /// Determines if two shifts are adjacent (fatigue risk).
+        /// </summary>
+        private bool IsBackToBack(ShiftTypes assigned, ShiftTypes candidate)
+        {
+            return (assigned == ShiftTypes.Morning && candidate == ShiftTypes.Evening)
+                || (assigned == ShiftTypes.Evening && candidate == ShiftTypes.Night)
+                || (assigned == ShiftTypes.Night && candidate == ShiftTypes.Morning);
         }
 
     }

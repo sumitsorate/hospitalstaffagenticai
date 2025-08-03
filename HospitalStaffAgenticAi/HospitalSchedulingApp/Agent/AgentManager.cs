@@ -94,6 +94,7 @@ namespace HospitalSchedulingApp.Agent
 
             // Not found — create new agent
             string systemPromptPath = Path.Combine("SystemPrompt", "SystemPrompt.txt");
+            
 
             if (!File.Exists(systemPromptPath))
                 throw new FileNotFoundException($"System prompt file not found at: {systemPromptPath}");

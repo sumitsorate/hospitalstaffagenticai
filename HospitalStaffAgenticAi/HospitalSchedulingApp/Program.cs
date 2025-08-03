@@ -129,6 +129,9 @@ builder.Services.AddScoped<IToolHandler, FetchLeaveRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, ApproveOrRejectLeaveRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, AssignShiftToStaffToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveLoggedInUserRoleToolHandler>();
+builder.Services.AddScoped<IToolHandler, ResolveStaffReferenceToolHandler>(); 
+builder.Services.AddScoped<IToolHandler, ResolveNaturalLanguageDateToolHandler>();
+
 
 
 

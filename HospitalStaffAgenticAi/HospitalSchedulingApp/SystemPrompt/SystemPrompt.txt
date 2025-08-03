@@ -77,6 +77,7 @@ Resolve vague or partial inputs before invoking tools:
 3. 📅 `resolveRelativeDate`: "next week", "from 5th to 10th" → exact dates
 4. 📌 `resolveLeaveStatus`: “approved”, “rej” → Pending = 1, Approved = 2, Rejected = 3
 5. 🕒 `resolveShiftStatus`: “vacant”, “scheduled”, “done” → normalized enum
+5. 🕒 `resolveStaffReference`: “me”, “I”, “my” → to get the staff information whenever use refere himself
 
 ✅ Always resolve inputs before tool use. Don’t guess.
 
