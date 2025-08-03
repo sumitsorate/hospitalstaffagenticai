@@ -35,14 +35,19 @@ namespace HospitalSchedulingApp.Services
             }
 
             var today = DateTime.Today;
+            var weekEnd = today.AddDays(6);
+
             var shiftFilter = new ShiftFilterDto
             {
                 FromDate = today,
+                ToDate = weekEnd,
                 ShiftStatusId = (int)ShiftStatuses.Vacant
             };
 
             var leaveRequestFilter = new LeaveRequestFilter
             {
+                StartDate = today,
+                EndDate = weekEnd,
                 LeaveStatusId = LeaveRequestStatuses.Pending
             };
 
