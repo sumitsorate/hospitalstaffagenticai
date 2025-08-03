@@ -69,8 +69,10 @@ builder.Services.AddScoped<IAgentService, AgentService>(sp =>
     var client = sp.GetRequiredService<PersistentAgentsClient>();
     var logger = sp.GetRequiredService<ILogger<AgentService>>();
     var toolHandlers = sp.GetServices<IToolHandler>();
+    var acv = sp.GetRequiredService<IAgentConversationService>();
+    var ucx = sp.GetRequiredService<IUserContextService>(); 
 
-    return new AgentService(client, agent, toolHandlers, logger);
+    return new AgentService(client, agent, toolHandlers,acv,ucx, logger);
 });
 
 // Security Tokens
@@ -109,6 +111,7 @@ builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
 builder.Services.AddScoped<ILeaveTypeService, LeaveTypeService>();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
 builder.Services.AddScoped<IAgentConversationService, AgentConversationService>();
+builder.Services.AddScoped<IAgentInsightsService, AgentInsightsService>();
 
 // Tool Handlers
 builder.Services.AddScoped<IToolHandler, FilterPlannedShiftsToolHandler>();
@@ -125,7 +128,9 @@ builder.Services.AddScoped<IToolHandler, ResolveLeaveTypeToolHandler>();
 builder.Services.AddScoped<IToolHandler, FetchLeaveRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, ApproveOrRejectLeaveRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, AssignShiftToStaffToolHandler>();
-builder.Services.AddScoped<IAgentInsightsService, AgentInsightsService>();
+builder.Services.AddScoped<IToolHandler, ResolveLoggedInUserRoleToolHandler>();
+
+
 
 
 

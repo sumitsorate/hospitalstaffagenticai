@@ -1,8 +1,13 @@
 ﻿
 
-Fetching Shift Schedule - Working
-Find Available Staff Datewise - Working
-Single Thread Per user implementation
+Shifts 
+- Fetching Shift Schedule - Working
+- Find Available Staff Datewise - Working
+
+Login 
+- Single Thread Per user implementation
+- Role based login and fetching only relevant data
+- Correct threading logic  &  - Login and Logout issue
 
 Leave Request
  - Submit Leave Request
@@ -14,13 +19,17 @@ Leave Request
  - When Leave Request is approved then change the status
    of leave request to Vacant
  - FetchSmartSuggestion: Fetch Uncovered Shift, View Pending Leave Request
- - Role based login and fetching only relevant data
  - Conditional loading of messages
+
+
 Next
-
-
- - Correct threading logic  &  - Login and Logout issue
+ - Make it week base
+ - Why particular decision is taken
+ - Balance workload this week
+ - Retry / back track when an assignment fails
+ - Memory across session
  - Proper message display
+ - Deferred Actions
  - When the application stops clear of all the threads
 
 

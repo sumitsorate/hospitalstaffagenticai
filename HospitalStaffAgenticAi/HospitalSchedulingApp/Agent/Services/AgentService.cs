@@ -1,6 +1,10 @@
 ﻿using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Handlers;
+using HospitalSchedulingApp.Dal.Entities;
+using HospitalSchedulingApp.Services.AuthServices.Interfaces;
+using HospitalSchedulingApp.Services.Interfaces;
 using System.Text.Json;
+using System.Threading;
 
 namespace HospitalSchedulingApp.Agent.Services
 {
@@ -14,26 +18,131 @@ namespace HospitalSchedulingApp.Agent.Services
         private readonly PersistentAgent _agent;
         private readonly ILogger<AgentService> _logger;
         private readonly IEnumerable<IToolHandler> _toolHandlers;
+        private readonly IAgentConversationService _agentConversationService;
+        private readonly IUserContextService _userContextService;
 
         public AgentService(
             PersistentAgentsClient persistentAgentsClient,
             PersistentAgent agent,
             IEnumerable<IToolHandler> toolHandlers,
+            IAgentConversationService agentConversationService,
+            IUserContextService userContextService,
             ILogger<AgentService> logger)
         {
             _client = persistentAgentsClient;
             _agent = agent;
             _toolHandlers = toolHandlers;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _agentConversationService = agentConversationService;
+            _userContextService = userContextService;
         }
-
         /// <summary>
         /// Creates a new persistent agent thread for communication.
         /// </summary>
-        public PersistentAgentThread CreateThread()
+        public async Task<PersistentAgentThread> CreateThreadAsync()
         {
-            return _client.Threads.CreateThread();
+            try
+            {
+                _logger.LogInformation("Creating new persistent agent thread...");
+                var thread = await _client.Threads.CreateThreadAsync();
+                _logger.LogInformation("Successfully created thread with ID: {ThreadId}", thread.Value.Id);
+                return thread;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while creating new persistent agent thread.");
+                throw;
+            }
         }
+
+        /// <summary>
+        /// Fetches an existing thread for the user or creates a new one if none exists.
+        /// </summary>
+        public async Task<string> FetchOrCreateThreadForUser(int? staffId = null)
+        {
+            try
+            { 
+                //if (staffId == null)
+                //{
+                //    _logger.LogWarning("StaffId not found in user context.");
+                //    throw new InvalidOperationException("Cannot create or fetch thread: Staff ID is null.");
+                //}
+
+                var existingThreadId = await _agentConversationService.FetchThreadIdForLoggedInUser();
+
+                if (!string.IsNullOrEmpty(existingThreadId))
+                {
+                    _logger.LogInformation("Existing thread found for StaffId {StaffId}: {ThreadId}", staffId, existingThreadId);
+                    return existingThreadId;
+                }
+
+                // No thread found, create new
+                var newThread = await CreateThreadAsync();
+
+                var agentConversation = new AgentConversations
+                {
+                    UserId = staffId.ToString(),
+                    ThreadId = newThread.Id,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _agentConversationService.AddAgentConversation(agentConversation);
+
+                _logger.LogInformation("New thread {ThreadId} created and saved for StaffId {StaffId}", newThread.Id, staffId);
+                return newThread.Id;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch or create thread for user.");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Deletes a thread from OpenAI and your system.
+        /// </summary>
+        public async Task DeleteThreadForUserAsync()
+        {
+            var threadId = await _agentConversationService.FetchThreadIdForLoggedInUser();
+            if (string.IsNullOrWhiteSpace(threadId))
+            {
+                _logger.LogWarning("ThreadId is null or empty. Skipping thread deletion.");
+                return;
+            }
+
+            try
+            {
+                _logger.LogInformation("Deleting thread with ID: {ThreadId}", threadId);
+                await _client.Threads.DeleteThreadAsync(threadId);
+                _logger.LogInformation("Successfully deleted thread from OpenAI: {ThreadId}", threadId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error while deleting thread from OpenAI: {ThreadId}", threadId);
+            }
+
+            try
+            {
+                var agentConversation = await _agentConversationService.FetchLoggedInUserAgentConversationInfo();
+                if (agentConversation != null)
+                {
+                    await _agentConversationService.DeleteAgentConversation(agentConversation);
+                    _logger.LogInformation("Deleted agent conversation entry for ThreadId: {ThreadId}", threadId);
+                }
+                else
+                {
+                    _logger.LogInformation("No agent conversation found to delete for ThreadId: {ThreadId}", threadId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while deleting agent conversation for thread {ThreadId}", threadId);
+                throw;
+            }
+        }
+
+
+
 
         /// <summary>
         /// Adds a user message to the provided thread.
@@ -45,27 +154,17 @@ namespace HospitalSchedulingApp.Agent.Services
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Adds a user message to the provided thread.
-        /// </summary>
-        public async Task DeleteThreadForUser(string threadId)
-        {
-            //// Clean up thread
-            await _client.Threads.DeleteThreadAsync(threadId);
-            _logger.LogInformation($"Thread {threadId} deleted.");
-
-        }
 
         /// <summary>
         /// Sends a message to the agent and waits for its final response.
         /// </summary>
-        public async Task<MessageContent?> GetAgentResponseAsync(string threadId, MessageRole role, string message)
+        public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
         {
-
             try
             {
+                var threadId = await FetchOrCreateThreadForUser();
                 await AddUserMessageAsync(threadId, role, message);
-               
+
                 ThreadRun run = _client.Runs.CreateRun(threadId, _agent.Id);
 
                 do
@@ -80,7 +179,7 @@ namespace HospitalSchedulingApp.Agent.Services
 
                         foreach (var toolCall in action.ToolCalls)
                         {
-                            var result = await GetResolvedToolOutput(toolCall);
+                            var result = await GetResolvedToolOutputAsync(toolCall);
                             if (result != null)
                                 toolOutputs.Add(result);
                         }
@@ -115,7 +214,7 @@ namespace HospitalSchedulingApp.Agent.Services
         /// <summary>
         /// Resolves a single tool call by matching it with a registered IToolHandler.
         /// </summary>
-        public async Task<ToolOutput?> GetResolvedToolOutput(RequiredToolCall toolCall)
+        public async Task<ToolOutput?> GetResolvedToolOutputAsync(RequiredToolCall toolCall)
         {
             if (toolCall is not RequiredFunctionToolCall functionToolCall)
                 return null;

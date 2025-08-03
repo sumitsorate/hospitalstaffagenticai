@@ -42,12 +42,8 @@ namespace HospitalSchedulingApp.Controllers
         [HttpPost("ask")]
         public async Task<IActionResult> AskAgent([FromBody] UserMessageRequestDto request)
         {
-            var loggedInUserThread = await _agentConversationService.FetchThreadIdForLoggedInUser();
 
-            if (string.IsNullOrEmpty(loggedInUserThread))
-                return BadRequest("Agent thread not found for the user.");
-
-            var response = await _agentService.GetAgentResponseAsync(loggedInUserThread, MessageRole.User, request.Message);
+            var response = await _agentService.GetAgentResponseAsync(  MessageRole.User, request.Message);
 
             if (response is MessageTextContent textResponse)
             {

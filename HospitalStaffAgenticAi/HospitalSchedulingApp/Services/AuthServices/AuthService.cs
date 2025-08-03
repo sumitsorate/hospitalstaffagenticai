@@ -52,30 +52,7 @@ namespace HospitalSchedulingApp.Services.AuthServices
             {
                 throw new UnauthorizedAccessException("Invalid username or password.");
             }
-
-            // Fetch the existing thread id 
-
-            var existingUserThreadId = await _agentConversationService
-                .FetchThreadIdForLoggedInUser();
-
-            if (existingUserThreadId != null)
-            {
-                loginInfo.ThreadId = existingUserThreadId;
-            }
-            else
-            {
-                var thread = _agentService.CreateThread(); // Consider making this async
-               
-                loginInfo.ThreadId = thread.Id;
-                
-                await _agentConversationService.AddAgentConversation(new AgentConversations
-                {
-                    UserId = loginInfo.StaffId.ToString(),
-                    ThreadId = thread.Id,
-                    CreatedAt = DateTime.UtcNow
-                });
-
-            }
+            loginInfo.ThreadId = await _agentService.FetchOrCreateThreadForUser(loginInfo.StaffId);         
 
             return loginInfo;
         }
@@ -137,18 +114,7 @@ namespace HospitalSchedulingApp.Services.AuthServices
         /// <exception cref="InvalidOperationException">Thrown if no thread is found.</exception>
         public async Task Logout(string threadId)
         {
-            var agentConversation = await _agentConversationService
-                .FetchLoggedInUserAgentConversationInfo();
-
-            if (!string.IsNullOrWhiteSpace(agentConversation?.ThreadId))
-            {
-                await _agentService.DeleteThreadForUser(agentConversation.ThreadId);
-            }
-
-            if (agentConversation != null)
-            {
-                await _agentConversationService.DeleteAgentConversation(agentConversation);
-            }
+            await _agentService.DeleteThreadForUserAsync();
         }
 
     }
