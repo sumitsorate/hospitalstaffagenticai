@@ -24,6 +24,9 @@ namespace HospitalSchedulingApp.Dal.Data// Replace with your actual namespace
         public DbSet<LeaveTypes> LeaveTypes { get; set; }
         public DbSet<LeaveRequests> LeaveRequests { get; set; }
 
+        public DbSet<SwapRequestStatus> SwapRequestStatus { get; set; }
+        public DbSet<ShiftSwapRequest> ShiftSwapRequest { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             //// No navigation properties, so keep it minimal
@@ -154,6 +157,42 @@ namespace HospitalSchedulingApp.Dal.Data// Replace with your actual namespace
                 entity.Property(e => e.LeaveTypeId).HasColumnName("leave_type_id");
                 entity.Property(e => e.LeaveStatusId).HasColumnName("leave_status_id");
             });
+
+            modelBuilder.Entity<SwapRequestStatus>(entity =>
+            {
+                entity.ToTable("SwapRequestStatus");
+
+                entity.HasKey(e => e.StatusId);
+
+                entity.Property(e => e.StatusId).HasColumnName("status_id");
+                entity.Property(e => e.StatusName).HasColumnName("status_name").HasMaxLength(20).IsRequired();
+            });
+
+            modelBuilder.Entity<ShiftSwapRequest>(entity =>
+            {
+                entity.ToTable("ShiftSwapRequests");
+
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Id).HasColumnName("id");
+
+                entity.Property(e => e.RequestingStaffId).HasColumnName("requesting_staff_id");
+                entity.Property(e => e.TargetStaffId).HasColumnName("target_staff_id");
+
+                entity.Property(e => e.SourceShiftDate).HasColumnName("source_shift_date");
+                entity.Property(e => e.SourceShiftTypeId).HasColumnName("source_shift_type_id");
+
+                entity.Property(e => e.TargetShiftDate).HasColumnName("target_shift_date");
+                entity.Property(e => e.TargetShiftTypeId).HasColumnName("target_shift_type_id");
+
+                entity.Property(e => e.StatusId).HasColumnName("status_id");
+
+                entity.Property(e => e.RequestedAt).HasColumnName("requested_at").HasDefaultValueSql("GETDATE()");
+                entity.Property(e => e.RespondedAt).HasColumnName("responded_at");
+                entity.Property(e => e.ResponseNote).HasColumnName("response_note").HasMaxLength(500);
+            });
+
+
         }
     }
 }

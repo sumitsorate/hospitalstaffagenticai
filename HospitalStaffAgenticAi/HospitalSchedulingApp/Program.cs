@@ -112,6 +112,7 @@ builder.Services.AddScoped<ILeaveTypeService, LeaveTypeService>();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
 builder.Services.AddScoped<IAgentConversationService, AgentConversationService>();
 builder.Services.AddScoped<IAgentInsightsService, AgentInsightsService>();
+builder.Services.AddScoped<IShiftSwapService, ShiftSwapService>();
 
 // Tool Handlers
 builder.Services.AddScoped<IToolHandler, FilterPlannedShiftsToolHandler>();
@@ -131,9 +132,7 @@ builder.Services.AddScoped<IToolHandler, AssignShiftToStaffToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveLoggedInUserRoleToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveStaffReferenceToolHandler>(); 
 builder.Services.AddScoped<IToolHandler, ResolveNaturalLanguageDateToolHandler>();
-
-
-
+builder.Services.AddScoped<IToolHandler, SubmitShiftSwapRequestToolHandler>();
 
 
 

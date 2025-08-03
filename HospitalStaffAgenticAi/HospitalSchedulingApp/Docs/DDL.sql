@@ -194,3 +194,48 @@ ALTER TABLE [dbo].[LeaveRequests] WITH CHECK ADD CONSTRAINT [FK_LeaveRequests_St
 ALTER TABLE [dbo].[LeaveRequests] WITH CHECK ADD CONSTRAINT [FK_LeaveRequests_LeaveTypes] FOREIGN KEY([leave_type_id]) REFERENCES [dbo].[LeaveTypes]([leave_type_id]);
 ALTER TABLE [dbo].[LeaveRequests] WITH CHECK ADD CONSTRAINT [FK_LeaveRequests_LeaveStatus] FOREIGN KEY([leave_status_id]) REFERENCES [dbo].[LeaveStatus]([leave_status_id]);
 GO
+
+-- =============================================
+-- Lookup Table: SwapRequestStatus
+-- =============================================
+CREATE TABLE [dbo].[SwapRequestStatus] (
+    [status_id] INT IDENTITY(1,1) NOT NULL,
+    [status_name] NVARCHAR(20) NOT NULL UNIQUE,
+    CONSTRAINT [PK_SwapRequestStatus] PRIMARY KEY ([status_id])
+);
+
+-- Predefined status values
+INSERT INTO [dbo].[SwapRequestStatus] (status_name)
+VALUES ('Pending'), ('Approved'), ('Rejected');
+
+-- =============================================
+-- Table: ShiftSwapRequests
+-- =============================================
+CREATE TABLE [dbo].[ShiftSwapRequests] (
+    [id] INT IDENTITY(1,1) NOT NULL,
+    
+    [requesting_staff_id] INT NOT NULL,     -- who initiates the request
+    [target_staff_id] INT NOT NULL,         -- who is being asked to swap
+
+    [source_shift_date] DATE NOT NULL,      -- shift the requester wants to give up
+    [source_shift_type_id] INT NOT NULL,    -- its type
+    
+    [target_shift_date] DATE NOT NULL,      -- shift the requester wants in exchange
+    [target_shift_type_id] INT NOT NULL,    -- its type
+
+    [status_id] INT NOT NULL DEFAULT 1,     -- links to SwapRequestStatus; default = Pending
+    [requested_at] DATETIME NOT NULL DEFAULT GETDATE(),
+    [responded_at] DATETIME NULL,
+    [response_note] NVARCHAR(500) NULL,
+
+    CONSTRAINT [PK_ShiftSwapRequests] PRIMARY KEY CLUSTERED ([id] ASC),
+
+    -- Foreign keys
+    CONSTRAINT [FK_ShiftSwap_RequestingStaff] FOREIGN KEY ([requesting_staff_id]) REFERENCES [dbo].[Staff]([staff_id]),
+    CONSTRAINT [FK_ShiftSwap_TargetStaff] FOREIGN KEY ([target_staff_id]) REFERENCES [dbo].[Staff]([staff_id]),
+
+    CONSTRAINT [FK_ShiftSwap_SourceShiftType] FOREIGN KEY ([source_shift_type_id]) REFERENCES [dbo].[ShiftType]([shift_type_id]),
+    CONSTRAINT [FK_ShiftSwap_TargetShiftType] FOREIGN KEY ([target_shift_type_id]) REFERENCES [dbo].[ShiftType]([shift_type_id]),
+
+    CONSTRAINT [FK_ShiftSwap_Status] FOREIGN KEY ([status_id]) REFERENCES [dbo].[SwapRequestStatus]([status_id])
+);

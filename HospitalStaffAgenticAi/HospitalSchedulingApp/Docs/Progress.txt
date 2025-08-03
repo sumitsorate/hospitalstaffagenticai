@@ -21,10 +21,11 @@ Leave Request
  - FetchSmartSuggestion: Fetch Uncovered Shift, View Pending Leave Request
  - Conditional loading of messages
  - Make it week base
+ - shift swap request submit
 
 
 Next
- - Shift Swap Request
+ - Shift Swap Request approval
  - Why particular decision is taken
  - Balance workload this week
  - Retry / back track when an assignment fails
@@ -32,6 +33,14 @@ Next
  - Proper message display
  - Deferred Actions
  - When the application stops clear of all the threads
+ - 🧠 (Optional) Proactive assistant behavior
+You can also extend the system prompt to enable proactive suggestions like:
+
+"It looks like you're working a late shift tomorrow and Priya has a morning shift. Would you like me to help you submit a shift swap request?"
+
+To support this, add:
+
+If you notice the user has a potentially swappable shift with another staff member, you may suggest submitting a swap request.
 
 
 
