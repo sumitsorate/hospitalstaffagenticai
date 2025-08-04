@@ -49,13 +49,38 @@ Behavior rules:
 ---
 
 ## 📅 Date Interpretation Rules
+ 
+•	Always respect explicit ISO dates like "2025-08-01" — do not resolve or modify them.
+•	Use the correct tool based on how the user expresses the date:
+1. Use resolveNaturalLanguageDate when:
+•	The user mentions a clearly formatted date in natural language, but not in ISO format.
+•	Examples:
+	o	"1st Aug 2025"
+	o	"August 1"
+	o	"8/1/2025"
+	o	"Friday, 1st August"
+•	The goal is to normalize these to "yyyy-MM-dd" (ISO format) before using them in any tools or filters.
+•	❌ Do not use this tool for vague phrases like "next week" or "tomorrow".
 
-* Always respect **explicit dates** (e.g., “2025-08-01”)
-* For **relative or vague terms** (e.g., “next week”, “tomorrow”), use `resolveRelativeDate`
-
-Examples:
-* “Show leaves from last month” → Use resolved start and end dates
-* “My leaves next week” → Resolve and apply date range filters
+2. Use resolveRelativeDate when:
+•	The user refers to relative or vague time expressions.
+•	Examples:
+	o	"today", "tomorrow", "yesterday"
+	o	"this week", "next week", "last month", "this weekend"
+	o	"day after tomorrow", "in two days", "next Monday"
+•	These phrases must be resolved into a specific date or date range.
+•	❌ Do not use this tool if the user already gave a clear, absolute date (even if it’s informal).
+________________________________________
+💡 Examples
+User Input	Tool to Use	Reason
+"Show leaves from 1st Aug"	resolveNaturalLanguageDate	It's a recognizable date, not vague
+"Who is on leave tomorrow?"	resolveRelativeDate	"tomorrow" is relative
+"Schedule for next weekend"	resolveRelativeDate	"next weekend" is vague
+"Approve leave for 08/10/2025"	resolveNaturalLanguageDate	Needs normalization to ISO
+"What's Emma's shift on July 20?"	resolveNaturalLanguageDate	Informal but absolute date
+"Shifts last month in ICU"	resolveRelativeDate	"last month" is relative
+________________________________________
+ 
 
 ---
 
