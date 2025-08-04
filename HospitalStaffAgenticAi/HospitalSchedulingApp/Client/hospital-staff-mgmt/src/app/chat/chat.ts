@@ -20,7 +20,7 @@ export class Chat implements OnInit {
 
   messages: { sender: string, text: string, quickReplies?: QuickReply[]; }[] = [];
   isWaiting = false;
-  showChat = false;
+  showChat = true;
   suggestions: SmartSuggestion[] = [];
 
 
@@ -34,8 +34,6 @@ export class Chat implements OnInit {
 
   ngOnInit(): void {
     this.loadSmartSuggestions();
-    //this.sendMessage("Hi")
-
   }
 
   handleActionClick(s: SmartSuggestion): void {
@@ -188,13 +186,18 @@ export class Chat implements OnInit {
     }, 100);
   }
 
+  resetConversation() {
+    this.messages = [];
+    this.loadSmartSuggestions();
+  }
+
   toggleChat() {
     this.showChat = !this.showChat;
-    if(this.showChat){
-          // Clear previous suggestions/messages if needed
-    this.messages = [];
-    this.suggestions = [];
-     this.loadSmartSuggestions(); // Reload suggestions when chat is opened
+    if (this.showChat) {
+      // Clear previous suggestions/messages if needed
+
+      // this.suggestions = [];
+      // this.loadSmartSuggestions(); // Reload suggestions when chat is opened
       this.scrollToBottom(); // Ensure chat scrolls to bottom on open
     }
   }

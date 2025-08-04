@@ -81,7 +81,10 @@ namespace HospitalSchedulingApp.Agent.Handlers.Staff
                         : (int?)null,
                     DepartmentId = root.TryGetProperty("departmentId", out var deptProp) && deptProp.ValueKind == JsonValueKind.Number
                         ? deptProp.GetInt32()
-                        : (int?)null
+                        : (int?)null,
+                    ApplyFatigueCheck = root.TryGetProperty("applyFatigueCheck", out var fatigueProp) && fatigueProp.ValueKind == JsonValueKind.False
+                        ? false
+                        : true // default is true
                 };
 
                 _logger.LogInformation("Searching available staff: start={StartDate}, end={EndDate}, dept={DepartmentId}, shift={ShiftTypeId}",
@@ -89,11 +92,44 @@ namespace HospitalSchedulingApp.Agent.Handlers.Staff
 
                 var dateWiseResult = await _staffService.SearchAvailableStaffAsync(filterDto);
 
+                //if (dateWiseResult == null || dateWiseResult.All(r => r?.AvailableStaff.Count == 0))
+                //{
+                //    _logger.LogInformation("searchAvailableStaff: No available staff found for given filter.");
+                //    return CreateError(call.Id, "No available staff found for the given criteria.");
+                //}
                 if (dateWiseResult == null || dateWiseResult.All(r => r?.AvailableStaff.Count == 0))
                 {
-                    _logger.LogInformation("searchAvailableStaff: No available staff found for given filter.");
-                    return CreateError(call.Id, "No available staff found for the given criteria.");
+                    _logger.LogInformation("searchAvailableStaff: No available staff found for given filter. FatigueCheck={ApplyFatigueCheck}", filterDto.ApplyFatigueCheck);
+
+                    if (filterDto.ApplyFatigueCheck)
+                    {
+                        // Suggest relaxing fatigue check to the user
+                        var followUpPrompt = new
+                        {
+                            success = false,
+                            prompt = "😕 No suitable staff found due to fatigue constraints. " +
+                                     "Would you like me to retry the search by relaxing rest rules (e.g., allow back-to-back shifts)?",
+                            suggestedNextAction = new
+                            {
+                                tool = ToolName,
+                                modifiedPayload = new
+                                {
+                                    startDate = filterDto.StartDate.ToString("yyyy-MM-dd"),
+                                    endDate = filterDto.EndDate.ToString("yyyy-MM-dd"),
+                                    shiftTypeId = filterDto.ShiftTypeId,
+                                    departmentId = filterDto.DepartmentId,
+                                    applyFatigueCheck = false
+                                }
+                            }
+                        };
+
+                        return new ToolOutput(call.Id, JsonSerializer.Serialize(followUpPrompt));
+                    }
+
+                    // No staff even after fatigue relaxed
+                    return CreateError(call.Id, "No available staff found even after relaxing fatigue rules.");
                 }
+
 
                 var output = new
                 {

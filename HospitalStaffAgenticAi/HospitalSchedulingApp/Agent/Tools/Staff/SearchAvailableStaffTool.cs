@@ -9,9 +9,13 @@ namespace HospitalSchedulingApp.Agent.Tools.Staff
         {
             return new FunctionToolDefinition(
                 name: "searchAvailableStaff",
-                description: "Finds staff members who are free and eligible to work during a given date or date range, filtered by shift type ID and optionally by department ID. "
+                description: "Finds staff members who are free and eligible to work during a given date or date range, "
+                           + "filtered by shift type ID and optionally by department ID. "
                            + "Validates staff availability, approved leaves, and existing shift assignments to suggest only suitable and unassigned staff. "
+                           + "Includes a fatigue check mechanism to avoid suggesting staff with back-to-back shifts by default. "
+                           + "If no staff are found under strict rules, this check can be relaxed (ApplyFatigueCheck = false) upon scheduler confirmation to widen the pool of eligible staff. "
                            + "Supports both planning future shifts and replacing staff in existing ones.",
+
                 parameters: BinaryData.FromObjectAsJson(
                     new
                     {
@@ -39,6 +43,11 @@ namespace HospitalSchedulingApp.Agent.Tools.Staff
                             {
                                 type = "integer",
                                 description = "Optional. Department ID to filter or prioritize staff from a specific department (e.g., ICU = 1, Emergency = 2)."
+                            },                            
+                            applyFatigueCheck = new
+                            {
+                                type = "boolean",
+                                description = "Optional. Set to false to allow suggesting staff with back-to-back shifts. Default is true."
                             }
                         },
                         required = new[] { "startDate", "endDate" }

@@ -4,8 +4,28 @@
 <!-- Chat Window -->
 <div class="chat-window" *ngIf="showChat">
   <div class="chat-header flex items-center justify-between px-4 py-2 bg-blue-600 text-white rounded-t-2xl shadow-md">
-    <span class="text-lg font-semibold">ShiftGenie <span class="text-sm font-normal opacity-80">– Your Wish, Scheduled</span></span>
-    <button type="button" class="btn-close btn-close-white ms-auto" aria-label="Close" (click)="toggleChat()" style="filter: brightness(0) invert(1);"></button>
+    <span class="text-lg font-semibold">ShiftGenie <span class="text-sm font-normal opacity-80">– Your Wish,
+        Scheduled</span></span>
+
+<div class="flex items-center gap-4">
+  <!-- 🔄 Refresh Button -->
+  <button type="button"
+          title="Refresh Chat"
+          (click)="resetConversation()"
+          class="text-white text-lg hover:scale-110 transition-transform duration-200"
+          style="background: none; border: none;">
+    🔄
+  </button>
+
+  <!-- ❌ Close Button -->
+  <button type="button"
+          class="btn-close btn-close-white ms-auto"
+          aria-label="Close"
+          (click)="toggleChat()"
+          style="filter: brightness(0) invert(1);">
+  </button>
+</div>
+
   </div>
 
   <!-- Chat Messages -->
@@ -18,16 +38,15 @@
       <!-- Agent Message -->
       <ng-container *ngIf="message.sender === 'Agent'">
         <div class="avatar">🤖</div>
-        
+
         <!-- Container for message bubble + quick replies -->
         <div class="agent-message-content">
           <div class="message-bubble">{{ message.text }}</div>
 
           <!-- Quick Replies -->
           <div *ngIf="message.quickReplies?.length" class="quick-replies">
-            <button *ngFor="let reply of message.quickReplies"
-                    class="quick-reply-btn"
-                    (click)="handleQuickReply(reply)">
+            <button *ngFor="let reply of message.quickReplies" class="quick-reply-btn"
+              (click)="handleQuickReply(reply)">
               {{ reply.label }}
             </button>
           </div>
@@ -74,7 +93,8 @@
   <div class="chat-input">
     <input type="text" [(ngModel)]="messageText" (keyup.enter)="sendMessage()" [disabled]="isWaiting"
       placeholder="Type your message..." />
-    <button class="send-button" (click)="sendMessage()" [disabled]="isWaiting || !messageText.trim()" aria-label="Send message">
+    <button class="send-button" (click)="sendMessage()" [disabled]="isWaiting || !messageText.trim()"
+      aria-label="Send message">
       <span *ngIf="!isWaiting">📨</span>
       <span *ngIf="isWaiting" class="loader"></span>
     </button>

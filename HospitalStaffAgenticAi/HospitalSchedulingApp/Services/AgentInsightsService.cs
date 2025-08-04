@@ -87,7 +87,8 @@ namespace HospitalSchedulingApp.Services
                 quickReplies.Add(new QuickReply
                 {
                     Label = "📅 Review Coverage",
-                    Value = $"show uncovered shifts for {today:yyyy-MM-dd}"
+                    Value = $"show unassigned shifts from {today:dd MMM yyyy} to {weekEnd:dd MMM yyyy}"
+
                 });
             }
 

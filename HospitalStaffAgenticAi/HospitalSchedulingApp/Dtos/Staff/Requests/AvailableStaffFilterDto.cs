@@ -28,5 +28,11 @@ namespace HospitalSchedulingApp.Dtos.Staff.Requests
         /// </summary>
         public int? DepartmentId { get; set; }
 
+        /// <summary>
+        /// If true, skips suggesting staff who may face fatigue risks (back-to-back shifts).
+        /// If false, allows them but typically only after scheduler confirmation.
+        /// </summary>
+        public bool ApplyFatigueCheck { get; set; } = true;
+
     }
 }

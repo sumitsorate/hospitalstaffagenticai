@@ -130,20 +130,22 @@ namespace HospitalSchedulingApp.Services
                         if (filter.ShiftTypeId.HasValue)
                         {
                             var shiftType = (ShiftTypes)filter.ShiftTypeId.Value;
-
-                            // Check same-day conflict
-                            if (todaysShifts.Any(ps =>
+                            if (filter.ApplyFatigueCheck)
+                            {
+                                // Check same-day conflict
+                                if (todaysShifts.Any(ps =>
                                 ps.ShiftTypeId == shiftType || // Same shift
                                 IsBackToBack(ps.ShiftTypeId, shiftType))) // Fatigue risk
-                            {
-                                return false;
-                            }
+                                {
+                                    return false;
+                                }
 
-                            // Special check for Morning shift after previous day's Night
-                            if (shiftType == ShiftTypes.Morning &&
-                                yesterdaysShifts.Any(ps => ps.ShiftTypeId == ShiftTypes.Night))
-                            {
-                                return false;
+                                // Special check for Morning shift after previous day's Night
+                                if (shiftType == ShiftTypes.Morning &&
+                                    yesterdaysShifts.Any(ps => ps.ShiftTypeId == ShiftTypes.Night))
+                                {
+                                    return false;
+                                }
                             }
                         }
 
