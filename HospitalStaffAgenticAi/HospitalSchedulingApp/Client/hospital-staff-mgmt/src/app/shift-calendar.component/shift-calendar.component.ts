@@ -19,7 +19,7 @@ export class ShiftCalendarComponent implements OnInit {
 
   isLoading: boolean = false;
   constructor(private scheduleService: ShiftScheduleService, private cdRef: ChangeDetectorRef) { }
-@ViewChild('calendar') calendarComponent!: FullCalendarComponent;
+  @ViewChild('calendar') calendarComponent!: FullCalendarComponent;
   calendarOptions: CalendarOptions = {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
     initialView: 'dayGridMonth',
@@ -32,54 +32,98 @@ export class ShiftCalendarComponent implements OnInit {
     events: [], // Initially empty
     dateClick: this.handleDateClick.bind(this),
     eventClick: this.handleEventClick.bind(this),
+eventContent: (arg) => {
+  const { staffName, departmentName, shiftType, isVacant } = arg.event.extendedProps;
+
+  const container = document.createElement('div');
+  container.classList.add('shift-card', isVacant ? 'vacant-shift' : 'assigned-shift');
+
+  const emoji = isVacant ? '🟡' : '👩‍⚕️';
+  const nameDiv = document.createElement('div');
+  nameDiv.classList.add('staff-name');
+  nameDiv.innerText = `${emoji} ${staffName}`;
+
+  const detailDiv = document.createElement('div');
+  detailDiv.classList.add('shift-details');
+  detailDiv.innerText = `${departmentName} · ${shiftType}`;
+
+  container.appendChild(nameDiv);
+  container.appendChild(detailDiv);
+
+  return { domNodes: [container] };
+}
+
+
+
+    // eventContent: (arg) => {
+    //   const { staffName, departmentName, shiftType, isVacant } = arg.event.extendedProps;
+
+    //   const container = document.createElement('div');
+    //   container.classList.add('shift-card', isVacant ? 'vacant-shift' : 'assigned-shift');
+
+    //   const emoji = isVacant ? '🟡' : '👩‍⚕️';
+    //   const nameDiv = document.createElement('div');
+    //   nameDiv.classList.add('staff-name');
+    //   nameDiv.innerText = `${emoji} ${staffName}`;
+
+    //   const detailDiv = document.createElement('div');
+    //   detailDiv.classList.add('shift-details');
+    //   detailDiv.innerText = `${departmentName} · ${shiftType}`;
+
+    //   container.appendChild(nameDiv);
+    //   container.appendChild(detailDiv);
+
+    //   return { domNodes: [container] };
+    // }
+
     // 👉 Add this here
-    eventDidMount: (info) => {
-      console.log("info", info)
-      const { staffName, departmentName, shiftType } = info.event.extendedProps;
+    // eventDidMount: (info) => {
+    //   console.log("info", info)
+    //   const { staffName, departmentName, shiftType } = info.event.extendedProps;
 
-      const content = `
-      <div class="shift-title">
-        <div class="staff-name">${staffName}</div>
-        <div class="details">(${departmentName} - ${shiftType})</div>
-      </div>
-    `;
+    //   const content = `
+    //   <div class="shift-title">
+    //     <div class="staff-name">${staffName}</div>
+    //     <div class="details">(${departmentName} - ${shiftType})</div>
+    //   </div>
+    // `;
 
-      const titleEl = info.el.querySelector('.fc-event-title');
-      if (titleEl) {
-        titleEl.innerHTML = content;
-      }
-    }
+    //   const titleEl = info.el.querySelector('.fc-event-title');
+    //   if (titleEl) {
+    //     titleEl.innerHTML = content;
+    //   }
+    // }
   };
 
-  refreshCalendar() {  
-     this.loadCalendar(); 
+  refreshCalendar() {
+    this.loadCalendar();
   }
 
-loadCalendar() {
-  this.isLoading = true; // 🔄 Start spinner
-  const startDate = '2025-07-01';
-  const endDate = '2025-07-31';
+  loadCalendar() {
+    this.isLoading = true; // 🔄 Start spinner
+    const startDate = '2025-07-01';
+    const endDate = '2025-07-31';
 
-  this.scheduleService.fetchShiftInformation().subscribe({
-    next: (shifts: PlannedShiftDto[]) => {
-      const events = this.transformShiftsToEvents(shifts);
-      console.log('Fetched shifts:', events);
+    this.scheduleService.fetchShiftInformation().subscribe({
+      next: (shifts: PlannedShiftDto[]) => {
+        const events = this.transformShiftsToEvents(shifts);
+        console.log('Fetched shifts:', events);
 
-      this.calendarOptions = {
-        ...this.calendarOptions,
-        events: events
-      };
-      this.cdRef.detectChanges();
-    },
-    error: err => {
-      console.error('Failed to fetch shifts:', err);
-    },
-    complete: () => {
-      this.isLoading = false; // ✅ Stop spinner after both success and error
-      this.cdRef.detectChanges();
-    }
-  });
-}
+        this.calendarOptions = {
+          ...this.calendarOptions,
+          events: events
+        };
+        this.cdRef.detectChanges();
+      },
+      error: err => {
+        console.error('Failed to fetch shifts:', err);
+      },
+      complete: () => {
+        this.isLoading = false; // ✅ Stop spinner after both success and error
+        this.cdRef.detectChanges();
+      }
+    });
+  }
 
 
 
@@ -99,7 +143,7 @@ loadCalendar() {
   transformShiftsToEvents(shifts: PlannedShiftDto[]): any[] {
     return shifts.map(shift => {
       const isVacant = shift.shiftStatusId === 5;
-      if(isVacant) {
+      if (isVacant) {
         shift.assignedStaffFullName = 'Vacant';
       }
 

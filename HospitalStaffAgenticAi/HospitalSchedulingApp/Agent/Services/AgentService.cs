@@ -300,6 +300,7 @@ namespace HospitalSchedulingApp.Agent.Services
 
                 var messages = _client.Messages.GetMessages(
                     threadId: threadId,
+                  //  runId: run.Id,
                     order: ListSortOrder.Descending
                 );
 
