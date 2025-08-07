@@ -164,7 +164,7 @@ namespace HospitalSchedulingApp.Agent.Services
         public Task AddUserMessageAsync(string threadId, MessageRole role, string message)
         {
             _logger.LogInformation($"Adding user message to thread {threadId}: {message}");
-            _client.Messages.CreateMessage(threadId, role, message);
+            _client.Messages.CreateMessage(threadId, MessageRole.User, message);
             return Task.CompletedTask;
         }
 
@@ -174,7 +174,74 @@ namespace HospitalSchedulingApp.Agent.Services
         /// </summary>
         /// 
 
+        //public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
+        //{
+        //    try
+        //    {
+        //        var threadId = await FetchOrCreateThreadForUser();
+        //        await AddUserMessageAsync(threadId, role, message);
 
+        //        var run = await _client.Runs.CreateRunAsync(threadId, _agent.Id);
+
+        //        while ( run.Value.Status == RunStatus.Queued ||
+        //               run.Value.Status == RunStatus.InProgress ||
+        //               run.Value.Status == RunStatus.RequiresAction)
+        //        {
+        //            // 🛠️ Handle tool invocation if needed
+        //            if (run.Value.Status == RunStatus.RequiresAction &&
+        //                run.Value.RequiredAction is SubmitToolOutputsAction action)
+        //            {
+        //                var toolOutputs = new List<ToolOutput>();
+
+        //                foreach (var toolCall in action.ToolCalls)
+        //                {
+        //                    var output = await GetResolvedToolOutputAsync(toolCall);
+        //                    if (output != null)
+        //                        toolOutputs.Add(output);
+        //                }
+
+        //                run = await _client.Runs.SubmitToolOutputsToRunAsync(threadId, run.Value.Id, toolOutputs);
+        //            }
+
+        //            // ⏳ Delay before polling again
+        //            await Task.Delay(500);
+
+        //            // 🔄 Poll status again
+        //            run = await _client.Runs.GetRunAsync(threadId, run.Value.Id);
+        //        }
+
+        //        // ✅ Run is complete, fetch assistant messages
+        //        var messages = new List<PersistentThreadMessage>();
+
+        //        await foreach (var msg in _client.Messages.GetMessagesAsync(
+        //            threadId: threadId,
+        //            //runId: run.Value.Id,
+        //            order: ListSortOrder.Descending))
+        //        {
+        //            messages.Add(msg);
+        //        }
+
+        //        foreach (var msg in messages)
+        //        {
+        //            var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
+        //            if (messageText != null)
+        //            {
+        //                _logger.LogInformation("Assistant says: {Text}", messageText.Text);
+        //                return messageText;
+        //            }
+        //        }
+
+        //        _logger.LogWarning("No assistant response found.");
+        //        return null;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error in GetAgentResponseAsync");
+        //        throw;
+        //    }
+        //}
+
+        //Checking
         public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
         {
             try
@@ -231,30 +298,24 @@ namespace HospitalSchedulingApp.Agent.Services
                     }
                 }
 
-                // ✅ Final Assistant Response
-                //var messages = _client.Messages.GetMessages(
-                //    threadId: threadId,
-                //    order: ListSortOrder.Descending
-                //);
-                var messages = new List<PersistentThreadMessage>();
-
-                await foreach (var msg in _client.Messages.GetMessagesAsync(
+                var messages = _client.Messages.GetMessages(
                     threadId: threadId,
-                    order: ListSortOrder.Descending))
+                    order: ListSortOrder.Descending
+                );
+
+                foreach (var msg in messages)
                 {
-                    messages.Add(msg);
+                    if(msg.Role == MessageRole.Agent)
+                    {
+                        var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
+                        _logger.LogInformation(messageText?.Text);
+                        return messageText;
+                    }
+
                 }
 
+                return null;
 
-
-                var assistantMessage = messages
-                    .FirstOrDefault(m => m.Role == MessageRole.Agent)?
-                    .ContentItems
-                    .OfType<MessageTextContent>()
-                    .FirstOrDefault();
-
-                _logger.LogInformation("Assistant says: {Text}", assistantMessage?.Text);
-                return assistantMessage;
             }
             catch (Exception ex)
             {

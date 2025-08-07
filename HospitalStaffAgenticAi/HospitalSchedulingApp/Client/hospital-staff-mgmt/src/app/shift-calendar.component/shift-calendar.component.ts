@@ -32,39 +32,23 @@ export class ShiftCalendarComponent implements OnInit {
     events: [], // Initially empty
     dateClick: this.handleDateClick.bind(this),
     eventClick: this.handleEventClick.bind(this),
+    // 👉 Add this here
     eventDidMount: (info) => {
+      console.log("info", info)
       const { staffName, departmentName, shiftType } = info.event.extendedProps;
 
       const content = `
-    <div class="shift-title">
-      <div class="staff-name">${staffName}</div>
-      <div class="details">(${departmentName} - ${shiftType})</div>
-    </div>
-  `;
+      <div class="shift-title">
+        <div class="staff-name">${staffName}</div>
+        <div class="details">(${departmentName} - ${shiftType})</div>
+      </div>
+    `;
 
       const titleEl = info.el.querySelector('.fc-event-title');
       if (titleEl) {
         titleEl.innerHTML = content;
       }
     }
-
-
-    // // 👉 Add this here
-    // eventDidMount: (info) => {
-    //   const { staffName, departmentName, shiftType } = info.event.extendedProps;
-
-    //   const content = `
-    //   <div class="shift-title">
-    //     <div class="staff-name">${staffName}</div>
-    //     <div class="details">(${departmentName} - ${shiftType})</div>
-    //   </div>
-    // `;
-
-    //   const titleEl = info.el.querySelector('.fc-event-title');
-    //   if (titleEl) {
-    //     titleEl.innerHTML = content;
-    //   }
-    // }
   };
 
   refreshCalendar() {  
@@ -114,7 +98,10 @@ loadCalendar() {
 
   transformShiftsToEvents(shifts: PlannedShiftDto[]): any[] {
     return shifts.map(shift => {
-      const isVacant = shift.assignedStaffFullName === 'Vacant';
+      const isVacant = shift.shiftStatusId === 5;
+      if(isVacant) {
+        shift.assignedStaffFullName = 'Vacant';
+      }
 
       return {
         title: isVacant

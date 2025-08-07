@@ -86,6 +86,22 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
                     return CreateError(call.Id, $"❌ Staff ID {staffId} has a leave (pending/approved) on {firstShift.ShiftDate:yyyy-MM-dd}.");
                 }
 
+                // Check if staff is already assigned to a different shift at the same time
+                var existingShifts = await _plannedShiftService.FetchFilteredPlannedShiftsAsync(new ShiftFilterDto
+                {
+                    FromDate = firstShift.ShiftDate,
+                    StaffId = staffId
+                });
+
+                if (existingShifts.Any(s =>
+                        s.PlannedShiftId != plannedShiftId &&  // not the same shift
+                        s.ShiftTypeId == firstShift.ShiftTypeId &&  // same shift type (Morning, Evening etc.)
+                        s.SlotNumber == firstShift.SlotNumber))  // same slot
+                {
+                    return CreateError(call.Id, $"❌ Staff ID {staffId} is already assigned to another shift at the same time.");
+                }
+
+
                 // Assign the shift
                 var shiftDto = await _plannedShiftService.AssignedShiftToStaffAsync(plannedShiftId, staffId);
                 if (shiftDto == null)

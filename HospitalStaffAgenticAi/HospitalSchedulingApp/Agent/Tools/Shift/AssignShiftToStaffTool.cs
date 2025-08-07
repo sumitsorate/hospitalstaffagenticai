@@ -1,4 +1,7 @@
 ﻿using Azure.AI.Agents.Persistent;
+using HospitalSchedulingApp.Dal.Entities;
+using Microsoft.Extensions.Options;
+using System.Diagnostics.Metrics;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Tools.Shift
@@ -9,7 +12,16 @@ namespace HospitalSchedulingApp.Agent.Tools.Shift
         {
             return new FunctionToolDefinition(
                 name: "assignShiftToStaff",
-                description: "Assigns a staff member to a planned shift by ID. Useful for scheduling staff for a shift that is currently vacant or reassigning an occupied one.",
+                description: """
+                    Assigns a staff member to a specific planned shift by its ID. 
+                    This tool is used to schedule a staff member for a shift that is currently vacant or to reassign an existing shift.
+
+                    ⚠️ Rules to follow:
+                    - Never assign the same staff member to more than one shift at the same time.
+                    - Avoid assigning staff to back-to-back shifts unless no other suitable staff are available.
+                    - Always prefer staff with no adjacent shifts to minimize fatigue and maintain work-life balance.
+                    """
+,
                 parameters: BinaryData.FromObjectAsJson(
                     new
                     {

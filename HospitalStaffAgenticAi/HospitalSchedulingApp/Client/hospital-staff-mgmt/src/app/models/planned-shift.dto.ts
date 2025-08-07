@@ -5,4 +5,5 @@ export interface PlannedShiftDto {
   shiftTypeName: string;
   assignedStaffFullName: string;
   shiftDeparmentName: string;
+  shiftStatusId? : number;
 }

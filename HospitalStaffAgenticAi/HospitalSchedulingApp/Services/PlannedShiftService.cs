@@ -92,6 +92,7 @@ namespace HospitalSchedulingApp.Services
                 .OrderBy(s => s.ShiftDate)
                 .ToList();
 
+           
             // Map to DTOs
             var dtos = finalShiftList.Select(shift =>
             {
@@ -104,6 +105,7 @@ namespace HospitalSchedulingApp.Services
                     PlannedShiftId = shift.PlannedShiftId,
                     ShiftDate = shift.ShiftDate,
                     SlotNumber = shift.SlotNumber,
+                    ShiftStatusId = (int)shift.ShiftStatusId,
                     ShiftTypeName = shiftTypes.FirstOrDefault(st => st.ShiftTypeId == (int)shift.ShiftTypeId)?.ShiftTypeName ?? string.Empty,
                     AssignedStaffFullName = staffMember?.StaffName ?? string.Empty,
                     ShiftDeparmentName = departments.FirstOrDefault(d => d.DepartmentId == shift.DepartmentId)?.DepartmentName ?? string.Empty
@@ -142,7 +144,7 @@ namespace HospitalSchedulingApp.Services
                     SlotNumber = shift.SlotNumber,
 
                     // IDs
-                    ShiftTypeId =(int) shift.ShiftTypeId,
+                    ShiftTypeId = (int)shift.ShiftTypeId,
                     DepartmentId = shift.DepartmentId,
                     ShiftStatusId = (int)shift.ShiftStatusId,
                     AssignedStaffId = shift.AssignedStaffId,
@@ -274,7 +276,7 @@ namespace HospitalSchedulingApp.Services
             return shiftDto;
         }
 
- 
+
         public async Task<PlannedShiftDto?> AssignedShiftToStaffAsync(int plannedShiftId, int staffId)
         {
             // Fetch the shift
