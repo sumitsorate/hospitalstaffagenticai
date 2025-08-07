@@ -34,6 +34,36 @@ namespace HospitalSchedulingApp.Services
             _userContextService = userContextService;
         }
 
+
+        // Calendar UI Call
+        public async Task<PlannedShiftDto?> AddNewPlannedShiftAsync(PlannedShift plannedShift)
+        {
+            // Ensure shift is marked as vacant by default
+            plannedShift.AssignedStaffId = null;
+            plannedShift.ShiftStatusId = ShiftStatuses.Vacant;
+
+            // Save to database
+            await _plannedShiftRepo.AddAsync(plannedShift);
+            await _plannedShiftRepo.SaveAsync();
+
+            // Load metadata
+            var department = await _departmentRepo.GetByIdAsync(plannedShift.DepartmentId);
+            var shiftType = await _shiftTypeRepo.GetByIdAsync((int)plannedShift.ShiftTypeId);
+
+            // Return DTO
+            return new PlannedShiftDto
+            {
+                PlannedShiftId = plannedShift.PlannedShiftId,
+                ShiftDate = plannedShift.ShiftDate,
+                SlotNumber = plannedShift.SlotNumber,
+                ShiftTypeName = shiftType?.ShiftTypeName ?? string.Empty,
+                AssignedStaffFullName = "", // No one assigned
+                ShiftDeparmentName = department?.DepartmentName ?? string.Empty
+            };
+        }
+
+
+
         // Calendar UI Call
         public async Task<List<PlannedShiftDto>> FetchPlannedShiftsAsync(DateTime startDate, DateTime endDate)
         {

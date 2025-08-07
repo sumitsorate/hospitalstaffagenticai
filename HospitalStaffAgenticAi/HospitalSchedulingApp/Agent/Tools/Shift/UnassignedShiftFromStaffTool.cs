@@ -3,13 +3,13 @@ using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Tools.Shift
 {
-    public static class AssignShiftToStaffTool
+    public static class UnassignedShiftFromStaffTool
     {
         public static FunctionToolDefinition GetTool()
         {
             return new FunctionToolDefinition(
-                name: "assignShiftToStaff",
-                description: "Assigns a staff member to a planned shift by ID. Useful for scheduling staff for a shift that is currently vacant or reassigning an occupied one.",
+                name: "unassignShiftFromStaff",
+                description: "Unassigns the staff member from a planned shift. Useful when a staff member needs to be removed from a shift (e.g., due to leave or reassignment).",
                 parameters: BinaryData.FromObjectAsJson(
                     new
                     {
@@ -19,19 +19,15 @@ namespace HospitalSchedulingApp.Agent.Tools.Shift
                             plannedShiftId = new
                             {
                                 type = "integer",
-                                description = "The ID of the planned shift to which the staff should be assigned."
-                            },
-                            staffId = new
-                            {
-                                type = "integer",
-                                description = "The ID of the staff member to assign to the shift."
+                                description = "The ID of the planned shift to unassign from the staff member."
                             }
                         },
-                        required = new[] { "plannedShiftId", "staffId" }
+                        required = new[] { "plannedShiftId" }
                     },
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
                 )
             );
         }
     }
+
 }

@@ -16,5 +16,7 @@ namespace HospitalSchedulingApp.Services.Interfaces
 
         Task<PlannedShiftDto?> AssignedShiftToStaffAsync(int plannedShiftId, int staffId);
 
+        Task<PlannedShiftDto?> AddNewPlannedShiftAsync(PlannedShift plannedShift);
+
     }
 }

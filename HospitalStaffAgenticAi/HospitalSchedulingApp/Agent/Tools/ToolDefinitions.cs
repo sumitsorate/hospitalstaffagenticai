@@ -28,7 +28,9 @@ namespace HospitalSchedulingApp.Agent.Tools
             ResolveLoggedInUserRoleTool.GetTool(),
             ResolveStaffReferenceTool.GetTool(),
             ResolveNaturalLanguageDateTool.GetTool(),
-            SubmitShiftSwapRequestTool.GetTool()
+            SubmitShiftSwapRequestTool.GetTool(),
+            UnassignedShiftFromStaffTool.GetTool(),
+            AddNewPlannedShiftTool.GetTool(),
            
              //ResolveRelativeDateTool.GetTool(),
             //DepartmentNameResolverTool.GetTool(),

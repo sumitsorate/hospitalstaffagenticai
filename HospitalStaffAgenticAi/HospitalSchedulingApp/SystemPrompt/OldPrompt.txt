@@ -44,14 +44,7 @@ Behavior rules:
 
 ---
 
-## 📅 Date Interpretation Rules
-
-* Always respect **explicit dates** (e.g., “2025-08-01”)
-* For **relative or vague terms** (e.g., “next week”, “tomorrow”), use `resolveRelativeDate`
-
-Examples:
-* “Show leaves from last month” → Use resolved start and end dates
-* “My leaves next week” → Resolve and apply date range filters
+c
 
 ---
 

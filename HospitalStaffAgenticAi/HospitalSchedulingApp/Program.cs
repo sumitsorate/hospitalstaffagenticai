@@ -7,6 +7,7 @@ using HospitalSchedulingApp.Agent.Handlers.Department;
 using HospitalSchedulingApp.Agent.Handlers.HelperHandlers;
 using HospitalSchedulingApp.Agent.Handlers.LeaveRequest;
 using HospitalSchedulingApp.Agent.Handlers.Shift;
+using HospitalSchedulingApp.Agent.Handlers.Shift.HospitalSchedulingApp.Agent.Handlers;
 using HospitalSchedulingApp.Agent.Handlers.Staff;
 using HospitalSchedulingApp.Agent.Services;
 using HospitalSchedulingApp.Dal.Data;
@@ -133,8 +134,8 @@ builder.Services.AddScoped<IToolHandler, ResolveLoggedInUserRoleToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveStaffReferenceToolHandler>(); 
 builder.Services.AddScoped<IToolHandler, ResolveNaturalLanguageDateToolHandler>();
 builder.Services.AddScoped<IToolHandler, SubmitShiftSwapRequestToolHandler>();
-
-
+builder.Services.AddScoped<IToolHandler, UnassignShiftFromStaffToolHandler>();
+builder.Services.AddScoped<IToolHandler, AddNewPlannedShiftToolHandler>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();

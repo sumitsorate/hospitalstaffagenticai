@@ -1,0 +1,13 @@
+﻿
+- Show All the Planned shift and there is no message in the chat interface
+1. Move shift to 11,12 and 13 th August or the the week when u are going to give demo
+Update PlannedShift Set shift_date  = '2025-08-11'
+where shift_date  = '2025-08-05'
+Update PlannedShift Set shift_date  = '2025-08-12'
+where shift_date  = '2025-08-06'
+Update PlannedShift Set shift_date  = '2025-08-13'
+where shift_date  = '2025-08-07'
+
+-- Show who is schedule
+--  can we add a shift from the 
+

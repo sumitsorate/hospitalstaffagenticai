@@ -90,7 +90,6 @@ namespace HospitalSchedulingApp.Services
             var departments = await _departmentRepo.GetAllAsync();
 
             var departmentMap = departments.ToDictionary(d => d.DepartmentId, d => d.DepartmentName);
-
             var dateRange = Enumerable.Range(0, (filter.EndDate.DayNumber - filter.StartDate.DayNumber + 1))
                                       .Select(offset => filter.StartDate.AddDays(offset))
                                       .ToList();
@@ -102,85 +101,262 @@ namespace HospitalSchedulingApp.Services
                 var shiftDate = date.ToDateTime(TimeOnly.MinValue);
                 var previousDate = shiftDate.AddDays(-1);
 
-                var availableStaffForDate = staffList
-                    .Where(s => s.IsActive)
-                    .Where(s =>
-                    {
-                        if (filter.DepartmentId.HasValue && s.StaffDepartmentId != filter.DepartmentId.Value)
-                            return false;
+                ShiftTypes? shiftType = filter.ShiftTypeId.HasValue ? (ShiftTypes)filter.ShiftTypeId.Value : null;
 
-                        var isAvailable = !availabilities.Any(a =>
-                            a.StaffId == s.StaffId &&
-                            a.AvailableDate == shiftDate &&
-                            !a.IsAvailable);
 
-                        var isOnLeave = leaveRequests.Any(l =>
-                            l.StaffId == s.StaffId &&
-                            l.LeaveStatusId == LeaveRequestStatuses.Approved &&
-                            shiftDate >= l.LeaveStart &&
-                            shiftDate <= l.LeaveEnd);
+                // STEP 1️⃣ Same department, fatigue check ON
+                var primaryStaff = FilterStaff(
+                    staffList.ToList(),
+                    shiftDate,
+                    previousDate,
+                    filter,
+                    shifts.ToList(),
+                    leaveRequests.ToList(),
+                    availabilities.ToList(),
+                    onlySameDepartment: true,
+                    applyFatigue: true
+                );
 
-                        if (!isAvailable || isOnLeave)
-                            return false;
+                if (!primaryStaff.Any())
+                {
+                    // STEP 2️⃣ Other departments, fatigue check ON
+                    primaryStaff = FilterStaff(
+                        staffList.ToList(),
+                        shiftDate,
+                        previousDate,
+                        filter,
+                        shifts.ToList(),
+                        leaveRequests.ToList(),
+                        availabilities.ToList(),
+                        onlySameDepartment: false,
+                        applyFatigue: true
+                    );
+                }
 
-                        // Get shifts of this staff
-                        var todaysShifts = shifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == shiftDate).ToList();
-                        var yesterdaysShifts = shifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == previousDate).ToList();
+                // STEP 3️⃣ If still none, optionally retry fatigue check OFF
+                if (!primaryStaff.Any() && !filter.ApplyFatigueCheck)
+                {
+                    var relaxedSame = FilterStaff(
+                        staffList.ToList(),
+                        shiftDate,
+                        previousDate,
+                        filter,
+                        shifts.ToList(),
+                        leaveRequests.ToList(),
+                        availabilities.ToList(),
+                        onlySameDepartment: true,
+                        applyFatigue: false
+                    ).Select(s =>
+                    { 
+                        return s;
+                    });
 
-                        if (filter.ShiftTypeId.HasValue)
-                        {
-                            var shiftType = (ShiftTypes)filter.ShiftTypeId.Value;
-                            if (filter.ApplyFatigueCheck)
-                            {
-                                // Check same-day conflict
-                                if (todaysShifts.Any(ps =>
-                                ps.ShiftTypeId == shiftType || // Same shift
-                                IsBackToBack(ps.ShiftTypeId, shiftType))) // Fatigue risk
-                                {
-                                    return false;
-                                }
+                    var relaxedOther = FilterStaff(
+                        staffList.ToList(),
+                        shiftDate,
+                        previousDate,
+                        filter,
+                        shifts.ToList(),
+                        leaveRequests.ToList(),
+                        availabilities.ToList(),
+                        onlySameDepartment: false,
+                        applyFatigue: false
+                    ).Select(s =>
+                    { 
+                        return s;
+                    });
 
-                                // Special check for Morning shift after previous day's Night
-                                if (shiftType == ShiftTypes.Morning &&
-                                    yesterdaysShifts.Any(ps => ps.ShiftTypeId == ShiftTypes.Night))
-                                {
-                                    return false;
-                                }
-                            }
-                        }
+                    // Prioritize same dept even under fatigue relaxed mode
+                    primaryStaff = relaxedSame.Concat(relaxedOther).ToList();
+                }
 
-                        return true;
-                    })
-                    .Select(s =>
-                    {
-                        departmentMap.TryGetValue(s.StaffDepartmentId, out var deptName);
-
-                        
-
-                        return new StaffDto
-                        {
-                            StaffId = s.StaffId,
-                            StaffName = s.StaffName,
-                            RoleId = s.RoleId, 
-                            StaffDepartmentId = s.StaffDepartmentId,
-                            StaffDepartmentName = deptName ?? string.Empty,
-                            IsActive = s.IsActive
-                        };
-                    })
-                    .ToList();
-
+                // Build result per date
                 result.Add(new AvailableStaffPerDateDto
                 {
                     Date = date,
-                    AvailableStaff = availableStaffForDate
+                    AvailableStaff = primaryStaff.Select(s => new StaffDto
+                    {
+                        StaffId = s.StaffId,
+                        StaffName = s.StaffName,
+                        RoleId = s.RoleId,
+                        StaffDepartmentId = s.StaffDepartmentId,
+                        StaffDepartmentName = departmentMap.GetValueOrDefault(s.StaffDepartmentId, string.Empty),
+                        IsActive = s.IsActive, 
+                    }).ToList()
                 });
 
-                _logger.LogDebug("Date: {Date}, Available staff count: {Count}", date, availableStaffForDate.Count);
+                _logger.LogDebug("Date: {Date}, Available staff count: {Count}", date, primaryStaff.Count);
             }
 
             _logger.LogInformation("Completed search for available staff from {Start} to {End}", filter.StartDate, filter.EndDate);
             return result;
         }
+
+
+        //public async Task<List<AvailableStaffPerDateDto?>> SearchAvailableStaffAsync(AvailableStaffFilterDto filter)
+        //{
+        //    var staffList = await _staffRepo.GetAllAsync();
+        //    var shifts = await _shiftRepo.GetAllAsync();
+        //    var leaveRequests = await _leaveRepo.GetAllAsync();
+        //    var availabilities = await _availabilityRepo.GetAllAsync();
+        //    var departments = await _departmentRepo.GetAllAsync();
+
+        //    var departmentMap = departments.ToDictionary(d => d.DepartmentId, d => d.DepartmentName);
+
+        //    var dateRange = Enumerable.Range(0, (filter.EndDate.DayNumber - filter.StartDate.DayNumber + 1))
+        //                              .Select(offset => filter.StartDate.AddDays(offset))
+        //                              .ToList();
+
+        //    var result = new List<AvailableStaffPerDateDto>();
+
+        //    foreach (var date in dateRange)
+        //    {
+        //        var shiftDate = date.ToDateTime(TimeOnly.MinValue);
+        //        var previousDate = shiftDate.AddDays(-1);
+
+        //        var availableStaffForDate = new List<StaffDto>();
+
+        //        // PHASE 1: Search for staff in same department
+        //        var phase1Staff = staffList
+        //            .Where(s => s.IsActive && s.StaffDepartmentId == filter.DepartmentId)
+        //            .Where(s => IsStaffAvailable(s, shiftDate, previousDate, filter, shifts.ToList(),
+        //            leaveRequests.ToList(), availabilities.ToList()))
+        //            .Select(s => CreateStaffDto(s, departmentMap))
+        //            .ToList();
+
+        //        availableStaffForDate.AddRange(phase1Staff);
+
+        //        // PHASE 2: If none found, try other departments
+        //        if (!availableStaffForDate.Any())
+        //        {
+        //            var phase2Staff = staffList
+        //                .Where(s => s.IsActive && s.StaffDepartmentId != filter.DepartmentId)
+        //                .Where(s => IsStaffAvailable(s, shiftDate, previousDate, filter,
+        //                 shifts.ToList(),
+        //            leaveRequests.ToList(), availabilities.ToList()))
+        //                .Select(s => CreateStaffDto(s, departmentMap))
+        //                .ToList();
+
+        //            availableStaffForDate.AddRange(phase2Staff);
+        //        }
+
+        //        result.Add(new AvailableStaffPerDateDto
+        //        {
+        //            Date = date,
+        //            AvailableStaff = availableStaffForDate
+        //        });
+
+        //        _logger.LogDebug("Date: {Date}, Available staff count: {Count}", date, availableStaffForDate.Count);
+        //    }
+
+        //    _logger.LogInformation("Completed search for available staff from {Start} to {End}", filter.StartDate, filter.EndDate);
+        //    return result;
+        //}
+
+
+        //public async Task<List<AvailableStaffPerDateDto?>> SearchAvailableStaffAsync(AvailableStaffFilterDto filter)
+        //{
+        //    var staffList = await _staffRepo.GetAllAsync();
+        //    var shifts = await _shiftRepo.GetAllAsync();
+        //    var leaveRequests = await _leaveRepo.GetAllAsync();
+        //    var availabilities = await _availabilityRepo.GetAllAsync();
+        //    var departments = await _departmentRepo.GetAllAsync();
+
+        //    var departmentMap = departments.ToDictionary(d => d.DepartmentId, d => d.DepartmentName);
+
+        //    var dateRange = Enumerable.Range(0, (filter.EndDate.DayNumber - filter.StartDate.DayNumber + 1))
+        //                              .Select(offset => filter.StartDate.AddDays(offset))
+        //                              .ToList();
+
+        //    var result = new List<AvailableStaffPerDateDto>();
+
+        //    foreach (var date in dateRange)
+        //    {
+        //        var shiftDate = date.ToDateTime(TimeOnly.MinValue);
+        //        var previousDate = shiftDate.AddDays(-1);
+
+        //        var availableStaffForDate = staffList
+        //            .Where(s => s.IsActive)
+        //            .Where(s =>
+        //            {
+        //                if (!s.IsActive)
+        //                    return false;
+
+        //                var isAvailable = !availabilities.Any(a =>
+        //                    a.StaffId == s.StaffId &&
+        //                    a.AvailableDate == shiftDate &&
+        //                    !a.IsAvailable);
+
+        //                var isOnLeave = leaveRequests.Any(l =>
+        //                    l.StaffId == s.StaffId &&
+        //                    l.LeaveStatusId == LeaveRequestStatuses.Approved &&
+        //                    shiftDate >= l.LeaveStart &&
+        //                    shiftDate <= l.LeaveEnd);
+
+        //                if (!isAvailable || isOnLeave)
+        //                    return false;
+
+        //                // Get shifts of this staff
+        //                var todaysShifts = shifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == shiftDate).ToList();
+        //                var yesterdaysShifts = shifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == previousDate).ToList();
+
+        //                if (filter.ShiftTypeId.HasValue && filter.ApplyFatigueCheck)
+        //                {
+        //                    var shiftType = (ShiftTypes)filter.ShiftTypeId.Value;
+
+        //                    // Same-day conflict or fatigue risk
+        //                    if (todaysShifts.Any(ps =>
+        //                        ps.ShiftTypeId == shiftType ||
+        //                        IsBackToBack(ps.ShiftTypeId, shiftType)))
+        //                    {
+        //                        return false;
+        //                    }
+
+        //                    // Morning after night (previous day)
+        //                    if (shiftType == ShiftTypes.Morning &&
+        //                        yesterdaysShifts.Any(ps => ps.ShiftTypeId == ShiftTypes.Night))
+        //                    {
+        //                        return false;
+        //                    }
+        //                }
+
+        //                // 🔄 Apply department filter at the end, only for **target assignment** (not for fatigue check)
+        //                if (filter.DepartmentId.HasValue && s.StaffDepartmentId != filter.DepartmentId.Value)
+        //                    return false;
+
+        //                return true;
+        //            })
+
+        //            .Select(s =>
+        //            {
+        //                departmentMap.TryGetValue(s.StaffDepartmentId, out var deptName);
+
+
+
+        //                return new StaffDto
+        //                {
+        //                    StaffId = s.StaffId,
+        //                    StaffName = s.StaffName,
+        //                    RoleId = s.RoleId, 
+        //                    StaffDepartmentId = s.StaffDepartmentId,
+        //                    StaffDepartmentName = deptName ?? string.Empty,
+        //                    IsActive = s.IsActive
+        //                };
+        //            })
+        //            .ToList();
+
+        //        result.Add(new AvailableStaffPerDateDto
+        //        {
+        //            Date = date,
+        //            AvailableStaff = availableStaffForDate
+        //        });
+
+        //        _logger.LogDebug("Date: {Date}, Available staff count: {Count}", date, availableStaffForDate.Count);
+        //    }
+
+        //    _logger.LogInformation("Completed search for available staff from {Start} to {End}", filter.StartDate, filter.EndDate);
+        //    return result;
+        //}
 
         /// <summary>
         /// Determines if two shifts are adjacent (fatigue risk).
@@ -191,6 +367,132 @@ namespace HospitalSchedulingApp.Services
                 || (assigned == ShiftTypes.Evening && candidate == ShiftTypes.Night)
                 || (assigned == ShiftTypes.Night && candidate == ShiftTypes.Morning);
         }
+
+        private bool IsStaffAvailable(
+    Staff s,
+    DateTime shiftDate,
+    DateTime previousDate,
+    AvailableStaffFilterDto filter,
+    List<PlannedShift> shifts,
+    List<LeaveRequests> leaveRequests,
+    List<NurseAvailability> availabilities)
+        {
+            var isAvailable = !availabilities.Any(a =>
+                a.StaffId == s.StaffId &&
+                a.AvailableDate == shiftDate &&
+                !a.IsAvailable);
+
+            var isOnLeave = leaveRequests.Any(l =>
+                l.StaffId == s.StaffId &&
+                l.LeaveStatusId == LeaveRequestStatuses.Approved &&
+                shiftDate >= l.LeaveStart &&
+                shiftDate <= l.LeaveEnd);
+
+            if (!isAvailable || isOnLeave)
+                return false;
+
+            var todaysShifts = shifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == shiftDate).ToList();
+            var yesterdaysShifts = shifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == previousDate).ToList();
+
+            if (filter.ShiftTypeId.HasValue && filter.ApplyFatigueCheck)
+            {
+                var shiftType = (ShiftTypes)filter.ShiftTypeId.Value;
+
+                if (todaysShifts.Any(ps =>
+                    ps.ShiftTypeId == shiftType ||
+                    IsBackToBack(ps.ShiftTypeId, shiftType)))
+                {
+                    return false;
+                }
+
+                if (shiftType == ShiftTypes.Morning &&
+                    yesterdaysShifts.Any(ps => ps.ShiftTypeId == ShiftTypes.Night))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private List<StaffDto> FilterStaff(
+    List<Staff> allStaff,
+    DateTime shiftDate,
+    DateTime previousDate,
+    AvailableStaffFilterDto filter,
+    List<PlannedShift> allShifts,
+    List<LeaveRequests> leaveRequests,
+    List<NurseAvailability> availabilities,
+    bool onlySameDepartment,
+    bool applyFatigue)
+        {
+            return allStaff
+                .Where(s => s.IsActive)
+                .Where(s =>
+                {
+                    if (onlySameDepartment && filter.DepartmentId.HasValue && s.StaffDepartmentId != filter.DepartmentId.Value)
+                        return false;
+                    if (!onlySameDepartment && filter.DepartmentId.HasValue && s.StaffDepartmentId == filter.DepartmentId.Value)
+                        return false;
+
+                    var isAvailable = !availabilities.Any(a =>
+                        a.StaffId == s.StaffId &&
+                        a.AvailableDate == shiftDate &&
+                        !a.IsAvailable);
+
+                    var isOnLeave = leaveRequests.Any(l =>
+                        l.StaffId == s.StaffId &&
+                        l.LeaveStatusId == LeaveRequestStatuses.Approved &&
+                        shiftDate >= l.LeaveStart &&
+                        shiftDate <= l.LeaveEnd);
+
+                    if (!isAvailable || isOnLeave)
+                        return false;
+
+                    var todaysShifts = allShifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == shiftDate).ToList();
+                    var yesterdaysShifts = allShifts.Where(ps => ps.AssignedStaffId == s.StaffId && ps.ShiftDate == previousDate).ToList();
+
+                    if (filter.ShiftTypeId.HasValue && applyFatigue)
+                    {
+                        var shiftType = (ShiftTypes)filter.ShiftTypeId.Value;
+
+                        if (todaysShifts.Any(ps => ps.ShiftTypeId == shiftType || IsBackToBack(ps.ShiftTypeId, shiftType)))
+                            return false;
+
+                        if (shiftType == ShiftTypes.Morning &&
+                            yesterdaysShifts.Any(ps => ps.ShiftTypeId == ShiftTypes.Night))
+                            return false;
+                    }
+
+                    return true;
+                })
+                .Select(s => new StaffDto
+                {
+                    StaffId = s.StaffId,
+                    StaffName = s.StaffName,
+                    RoleId = s.RoleId,
+                    StaffDepartmentId = s.StaffDepartmentId,
+                    IsActive = s.IsActive
+                })
+                .ToList();
+        }
+
+
+        private StaffDto CreateStaffDto(Staff s, Dictionary<int, string> departmentMap)
+        {
+            departmentMap.TryGetValue(s.StaffDepartmentId, out var deptName);
+
+            return new StaffDto
+            {
+                StaffId = s.StaffId,
+                StaffName = s.StaffName,
+                RoleId = s.RoleId,
+                StaffDepartmentId = s.StaffDepartmentId,
+                StaffDepartmentName = deptName ?? string.Empty,
+                IsActive = s.IsActive
+            };
+        }
+
 
     }
 }

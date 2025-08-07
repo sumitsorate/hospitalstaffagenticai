@@ -172,6 +172,9 @@ namespace HospitalSchedulingApp.Agent.Services
         /// <summary>
         /// Sends a message to the agent and waits for its final response.
         /// </summary>
+        /// 
+
+
         public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
         {
             try
@@ -181,11 +184,13 @@ namespace HospitalSchedulingApp.Agent.Services
 
                 ThreadRun run = _client.Runs.CreateRun(threadId, _agent.Id);
 
-                do
+                // 🔁 Loop until the run completes (initial phase)
+                while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction)
                 {
                     Thread.Sleep(500);
                     run = _client.Runs.GetRun(threadId, run.Id);
 
+                    // 🛠️ Handle required tools
                     if (run.Status == RunStatus.RequiresAction &&
                         run.RequiredAction is SubmitToolOutputsAction action)
                     {
@@ -199,31 +204,118 @@ namespace HospitalSchedulingApp.Agent.Services
                         }
 
                         run = _client.Runs.SubmitToolOutputsToRun(threadId, run.Id, toolOutputs);
+
+                        // 🔁 Continue waiting for final response after submitting tool outputs
+                        while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction)
+                        {
+                            Thread.Sleep(500);
+                            run = _client.Runs.GetRun(threadId, run.Id);
+
+                            if (run.Status == RunStatus.RequiresAction &&
+                                run.RequiredAction is SubmitToolOutputsAction followupAction)
+                            {
+                                var followupOutputs = new List<ToolOutput>();
+
+                                foreach (var followupCall in followupAction.ToolCalls)
+                                {
+                                    var followupResult = await GetResolvedToolOutputAsync(followupCall);
+                                    if (followupResult != null)
+                                        followupOutputs.Add(followupResult);
+                                }
+
+                                run = _client.Runs.SubmitToolOutputsToRun(threadId, run.Id, followupOutputs);
+                            }
+                        }
+
+                        break; // Exit outer loop once tool phase is completed
                     }
-
-                } while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction);
-
-                var messages = _client.Messages.GetMessages(
-                    threadId: threadId,
-                    order: ListSortOrder.Descending
-                );
-
-                foreach (var msg in messages)
-                {
-                    var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
-                    _logger.LogInformation(messageText?.Text);
-                    return messageText;
                 }
 
-                return null;
+                // ✅ Final Assistant Response
+                //var messages = _client.Messages.GetMessages(
+                //    threadId: threadId,
+                //    order: ListSortOrder.Descending
+                //);
+                var messages = new List<PersistentThreadMessage>();
+
+                await foreach (var msg in _client.Messages.GetMessagesAsync(
+                    threadId: threadId,
+                    order: ListSortOrder.Descending))
+                {
+                    messages.Add(msg);
+                }
+
+
+
+                var assistantMessage = messages
+                    .FirstOrDefault(m => m.Role == MessageRole.Agent)?
+                    .ContentItems
+                    .OfType<MessageTextContent>()
+                    .FirstOrDefault();
+
+                _logger.LogInformation("Assistant says: {Text}", assistantMessage?.Text);
+                return assistantMessage;
             }
-            finally
+            catch (Exception ex)
             {
-                //// Clean up thread
-                //await _client.Threads.DeleteThreadAsync(thread.Id);
-                //_logger.LogInformation($"Thread {thread.Id} deleted.");
+                _logger.LogError(ex, "Error in GetAgentResponseAsync");
+                throw;
             }
         }
+
+
+        //public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
+        //{
+        //    try
+        //    {
+        //        var threadId = await FetchOrCreateThreadForUser();
+        //        await AddUserMessageAsync(threadId, role, message);
+
+        //        ThreadRun run = _client.Runs.CreateRun(threadId, _agent.Id);
+
+        //        do
+        //        {
+        //            Thread.Sleep(500);
+        //            run = _client.Runs.GetRun(threadId, run.Id);
+
+        //            if (run.Status == RunStatus.RequiresAction &&
+        //                run.RequiredAction is SubmitToolOutputsAction action)
+        //            {
+        //                var toolOutputs = new List<ToolOutput>();
+
+        //                foreach (var toolCall in action.ToolCalls)
+        //                {
+        //                    var result = await GetResolvedToolOutputAsync(toolCall);
+        //                    if (result != null)
+        //                        toolOutputs.Add(result);
+        //                }
+
+        //                run = _client.Runs.SubmitToolOutputsToRun(threadId, run.Id, toolOutputs);
+        //            }
+
+        //        } while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction);
+
+        //        var messages = _client.Messages.GetMessages(
+        //            threadId: threadId,
+        //            order: ListSortOrder.Descending
+        //        );
+
+        //        foreach (var msg in messages)
+        //        {
+        //            var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
+        //            _logger.LogInformation(messageText?.Text);
+        //            return messageText;
+        //        }
+
+        //        return null;
+        //    }
+        //    finally
+        //    {
+        //        //// Clean up thread
+        //        //await _client.Threads.DeleteThreadAsync(thread.Id);
+        //        //_logger.LogInformation($"Thread {thread.Id} deleted.");
+        //    }
+        //}
 
         /// <summary>
         /// Resolves a single tool call by matching it with a registered IToolHandler.
@@ -256,7 +348,7 @@ namespace HospitalSchedulingApp.Agent.Services
                 return null;
             }
         }
-   
+
     }
 }
 
