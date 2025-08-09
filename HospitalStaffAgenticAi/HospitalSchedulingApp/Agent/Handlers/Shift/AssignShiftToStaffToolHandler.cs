@@ -90,7 +90,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
                 var existingShifts = await _plannedShiftService.FetchFilteredPlannedShiftsAsync(new ShiftFilterDto
                 {
                     FromDate = firstShift.ShiftDate,
-                    StaffId = staffId
+                    StaffId = staffId,
+                    ToDate = firstShift.ShiftDate
                 });
 
                 if (existingShifts.Any(s =>

@@ -79,7 +79,7 @@ namespace HospitalSchedulingApp.Services
 
 
             // Set request timestamp
-            request.RequestedAt = DateTime.UtcNow;
+            request.RequestedAt = DateTime.Now;
 
             // Save the request
             await _shiftSwapRepository.AddAsync(request);

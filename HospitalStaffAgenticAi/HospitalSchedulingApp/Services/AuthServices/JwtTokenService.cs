@@ -49,7 +49,7 @@ namespace HospitalSchedulingApp.Services.AuthServices
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(4),
+                expires: DateTime.Now.AddHours(4),
                 signingCredentials: credentials
             );
 

@@ -38,7 +38,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                 }
 
                 var phrase = phraseElement.GetString()?.ToLowerInvariant().Trim() ?? string.Empty;
-                var today = DateTime.UtcNow.Date;
+                //var today = DateTime.UtcNow.Date;
+                var today = DateTime.Now.Date;
                 string resultJson;
 
                 switch (phrase)
@@ -55,28 +56,38 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                         resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddDays(-1).ToString("yyyy-MM-dd") });
                         break;
 
+                    //case "this week":
+                    //    if (today.DayOfWeek == DayOfWeek.Sunday)
+                    //    {
+                    //        // If today is Sunday, treat this week as today through next Saturday
+                    //        var endOfWeek = today.AddDays(6);
+                    //        resultJson = JsonSerializer.Serialize(new
+                    //        {
+                    //            startDate = today.ToString("yyyy-MM-dd"),
+                    //            endDate = endOfWeek.ToString("yyyy-MM-dd")
+                    //        });
+                    //    }
+                    //    else
+                    //    {
+                    //        // Week ends on Sunday
+                    //        int daysUntilSunday = ((int)DayOfWeek.Sunday - (int)today.DayOfWeek + 7) % 7;
+                    //        var endOfWeek = today.AddDays(daysUntilSunday);
+                    //        resultJson = JsonSerializer.Serialize(new
+                    //        {
+                    //            startDate = today.ToString("yyyy-MM-dd"),
+                    //            endDate = endOfWeek.ToString("yyyy-MM-dd")
+                    //        });
+                    //    }
+                    //    break;
                     case "this week":
-                        if (today.DayOfWeek == DayOfWeek.Sunday)
+                        // Week always ends on Saturday
+                        int daysUntilSaturday = ((int)DayOfWeek.Saturday - (int)today.DayOfWeek + 7) % 7;
+                        var endOfWeek = today.AddDays(daysUntilSaturday);
+                        resultJson = JsonSerializer.Serialize(new
                         {
-                            // If today is Sunday, treat this week as today through next Saturday
-                            var endOfWeek = today.AddDays(6);
-                            resultJson = JsonSerializer.Serialize(new
-                            {
-                                startDate = today.ToString("yyyy-MM-dd"),
-                                endDate = endOfWeek.ToString("yyyy-MM-dd")
-                            });
-                        }
-                        else
-                        {
-                            // Week ends on Sunday
-                            int daysUntilSunday = ((int)DayOfWeek.Sunday - (int)today.DayOfWeek + 7) % 7;
-                            var endOfWeek = today.AddDays(daysUntilSunday);
-                            resultJson = JsonSerializer.Serialize(new
-                            {
-                                startDate = today.ToString("yyyy-MM-dd"),
-                                endDate = endOfWeek.ToString("yyyy-MM-dd")
-                            });
-                        }
+                            startDate = today.ToString("yyyy-MM-dd"),
+                            endDate = endOfWeek.ToString("yyyy-MM-dd")
+                        });
                         break;
 
 

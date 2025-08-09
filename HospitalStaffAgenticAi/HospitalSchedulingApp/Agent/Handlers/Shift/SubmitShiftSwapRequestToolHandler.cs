@@ -85,7 +85,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
                     TargetShiftDate = targetShiftDate,
                     TargetShiftTypeId = targetShiftTypeId,
                     StatusId = Common.Enums.ShiftSwapStatuses.Pending,
-                    RequestedAt = DateTime.UtcNow
+                    RequestedAt = DateTime.Now.Date
                 };
 
                 var shifts = await _plannedShiftRepo.GetAllAsync();
