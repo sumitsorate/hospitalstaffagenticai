@@ -87,5 +87,23 @@ namespace HospitalSchedulingApp.Agent.Services
             _agentConversationRepo.Delete(agentConversation);
             await _agentConversationRepo.SaveAsync();
         }
+
+        /// <summary>
+        /// Deletes the specified agent conversation from the repository and saves changes.
+        /// </summary>
+        /// <param name="agentConversation">The agent conversation to delete.</param>
+        public async Task UpdateThreadForUser(int staffId, string threadId)
+        {
+            var agentConversation = new AgentConversations
+            {
+                ThreadId = threadId,
+                CreatedAt = DateTime.Now,
+                UserId = staffId.ToString()
+            };
+            _agentConversationRepo.Update(agentConversation);
+            await _agentConversationRepo.SaveAsync();
+        }
+
+        
     }
 }

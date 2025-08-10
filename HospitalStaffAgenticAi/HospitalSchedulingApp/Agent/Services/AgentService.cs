@@ -20,14 +20,17 @@ namespace HospitalSchedulingApp.Agent.Services
         private readonly IEnumerable<IToolHandler> _toolHandlers;
         private readonly IAgentConversationService _agentConversationService;
         private readonly IUserContextService _userContextService;
+        private readonly IAgentManager _agentManager;
 
         public AgentService(
             PersistentAgentsClient persistentAgentsClient,
+
             PersistentAgent agent,
             IEnumerable<IToolHandler> toolHandlers,
             IAgentConversationService agentConversationService,
             IUserContextService userContextService,
-            ILogger<AgentService> logger)
+            ILogger<AgentService> logger
+            )
         {
             _client = persistentAgentsClient;
             _agent = agent;
@@ -35,6 +38,7 @@ namespace HospitalSchedulingApp.Agent.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _agentConversationService = agentConversationService;
             _userContextService = userContextService;
+
         }
         /// <summary>
         /// Creates a new persistent agent thread for communication.
@@ -155,229 +159,113 @@ namespace HospitalSchedulingApp.Agent.Services
             }
         }
 
-
-
-
         /// <summary>
         /// Adds a user message to the provided thread.
         /// </summary>
-        public Task AddUserMessageAsync(string threadId, MessageRole role, string message)
+        public async Task AddUserMessageAsync(string threadId, MessageRole role, string message)
         {
             _logger.LogInformation($"Adding user message to thread {threadId}: {message}");
-            _client.Messages.CreateMessage(threadId, MessageRole.User, message);
-            return Task.CompletedTask;
+            await _client.Messages.CreateMessageAsync(threadId, MessageRole.User, message);
+
         }
-
-
-        /// <summary>
-        /// Sends a message to the agent and waits for its final response.
-        /// </summary>
-        /// 
-
-        //public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
-        //{
-        //    try
-        //    {
-        //        var threadId = await FetchOrCreateThreadForUser();
-        //        await AddUserMessageAsync(threadId, role, message);
-
-        //        var run = await _client.Runs.CreateRunAsync(threadId, _agent.Id);
-
-        //        while ( run.Value.Status == RunStatus.Queued ||
-        //               run.Value.Status == RunStatus.InProgress ||
-        //               run.Value.Status == RunStatus.RequiresAction)
-        //        {
-        //            // 🛠️ Handle tool invocation if needed
-        //            if (run.Value.Status == RunStatus.RequiresAction &&
-        //                run.Value.RequiredAction is SubmitToolOutputsAction action)
-        //            {
-        //                var toolOutputs = new List<ToolOutput>();
-
-        //                foreach (var toolCall in action.ToolCalls)
-        //                {
-        //                    var output = await GetResolvedToolOutputAsync(toolCall);
-        //                    if (output != null)
-        //                        toolOutputs.Add(output);
-        //                }
-
-        //                run = await _client.Runs.SubmitToolOutputsToRunAsync(threadId, run.Value.Id, toolOutputs);
-        //            }
-
-        //            // ⏳ Delay before polling again
-        //            await Task.Delay(500);
-
-        //            // 🔄 Poll status again
-        //            run = await _client.Runs.GetRunAsync(threadId, run.Value.Id);
-        //        }
-
-        //        // ✅ Run is complete, fetch assistant messages
-        //        var messages = new List<PersistentThreadMessage>();
-
-        //        await foreach (var msg in _client.Messages.GetMessagesAsync(
-        //            threadId: threadId,
-        //            //runId: run.Value.Id,
-        //            order: ListSortOrder.Descending))
-        //        {
-        //            messages.Add(msg);
-        //        }
-
-        //        foreach (var msg in messages)
-        //        {
-        //            var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
-        //            if (messageText != null)
-        //            {
-        //                _logger.LogInformation("Assistant says: {Text}", messageText.Text);
-        //                return messageText;
-        //            }
-        //        }
-
-        //        _logger.LogWarning("No assistant response found.");
-        //        return null;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error in GetAgentResponseAsync");
-        //        throw;
-        //    }
-        //}
-
-        //Checking
         public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
         {
-            try
+            int maxRetries = 3;
+            int retryDelaySeconds = 2;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                var threadId = await FetchOrCreateThreadForUser();
-                await AddUserMessageAsync(threadId, role, message);
-
-                ThreadRun run = _client.Runs.CreateRun(threadId, _agent.Id);
-
-                // 🔁 Loop until the run completes (initial phase)
-                while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction)
+                try
                 {
-                    Thread.Sleep(500);
-                    run = _client.Runs.GetRun(threadId, run.Id);
+                    var threadId = await FetchOrCreateThreadForUser();
+                    await _client.Messages.CreateMessageAsync(threadId, MessageRole.User, message);
 
-                    // 🛠️ Handle required tools
-                    if (run.Status == RunStatus.RequiresAction &&
-                        run.RequiredAction is SubmitToolOutputsAction action)
+                    ThreadRun run = await _client.Runs.CreateRunAsync(threadId, _agent.Id);
+
+                    do
                     {
-                        var toolOutputs = new List<ToolOutput>();
+                        await Task.Delay(500);
+                        run = await _client.Runs.GetRunAsync(threadId, run.Id);
 
-                        foreach (var toolCall in action.ToolCalls)
+                        if (run.Status == RunStatus.RequiresAction &&
+                            run.RequiredAction is SubmitToolOutputsAction action)
                         {
-                            var result = await GetResolvedToolOutputAsync(toolCall);
-                            if (result != null)
-                                toolOutputs.Add(result);
+                            var toolOutputs = new List<ToolOutput>();
+                            foreach (var toolCall in action.ToolCalls)
+                            {
+                                var result = await GetResolvedToolOutputAsync(toolCall);
+                                if (result != null)
+                                    toolOutputs.Add(result);
+                            }
+                            run = await _client.Runs.SubmitToolOutputsToRunAsync(threadId, run.Id, toolOutputs);
                         }
 
-                        run = _client.Runs.SubmitToolOutputsToRun(threadId, run.Id, toolOutputs);
-
-                        // 🔁 Continue waiting for final response after submitting tool outputs
-                        while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction)
+                        // Check if run failed
+                        if (run.Status == RunStatus.Failed && run.LastError != null)
                         {
-                            Thread.Sleep(500);
-                            run = _client.Runs.GetRun(threadId, run.Id);
-
-                            if (run.Status == RunStatus.RequiresAction &&
-                                run.RequiredAction is SubmitToolOutputsAction followupAction)
+                            if (!string.IsNullOrEmpty(run.LastError.Code) && run.LastError.Code.Contains("rate_limit_exceeded", StringComparison.OrdinalIgnoreCase))
                             {
-                                var followupOutputs = new List<ToolOutput>();
+                                _logger.LogWarning("Rate limit exceeded. Waiting {RetryDelaySeconds} seconds before retrying attempt {Attempt}/{MaxRetries}.", retryDelaySeconds, attempt, maxRetries);
 
-                                foreach (var followupCall in followupAction.ToolCalls)
-                                {
-                                    var followupResult = await GetResolvedToolOutputAsync(followupCall);
-                                    if (followupResult != null)
-                                        followupOutputs.Add(followupResult);
-                                }
+                                await Task.Delay(retryDelaySeconds * 1000);
 
-                                run = _client.Runs.SubmitToolOutputsToRun(threadId, run.Id, followupOutputs);
+                                throw new Exception("Rate limit exceeded, retrying...");
+                            }
+                            else
+                            {
+                                _logger.LogError("Run failed with error code: {Code}, message: {Message}", run.LastError.Code, run.LastError.Message);
+                                break; // Exit retry loop on other errors
                             }
                         }
 
-                        break; // Exit outer loop once tool phase is completed
                     }
-                }
+                    while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction);
 
-                var messages = _client.Messages.GetMessages(
-                    threadId: threadId,
-                  //  runId: run.Id,
-                    order: ListSortOrder.Descending
-                );
+                    //var messages = _client.Messages.GetMessages(threadId, order: ListSortOrder.Descending);
 
-                foreach (var msg in messages)
-                {
-                    if(msg.Role == MessageRole.Agent)
+                    //foreach (var msg in messages)
+                    //{
+                    //    var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
+                    //    _logger.LogInformation("Returning message content: {Text}", messageText?.Text);
+                    //    return messageText;
+                    //}
+
+                    //return null;
+
+                    var messages = _client.Messages.GetMessages(threadId, runId: run.Id, order: ListSortOrder.Descending);
+                    foreach (var msg in messages)
                     {
-                        var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
-                        _logger.LogInformation(messageText?.Text);
-                        return messageText;
+                        if (msg.Role == MessageRole.Agent)  // Only consider assistant/bot replies
+                        {
+                            var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
+                            if (messageText != null)
+                            {
+                                _logger.LogInformation("Returning message content: {Text}", messageText.Text);
+                                return messageText;
+                            }
+                        }
                     }
 
+                    // If no assistant message found, return a fallback error message
+                    _logger.LogWarning("No assistant response found in messages after run completion.");
+                      
                 }
+                catch (Exception ex)
+                {
+                    if (attempt == maxRetries)
+                    {
+                        _logger.LogError(ex, "Failed after {MaxRetries} attempts due to rate limit or other errors.", maxRetries);
+                        throw; // rethrow after max retries
+                    }
 
-                return null;
+                    _logger.LogWarning(ex, "Attempt {Attempt} failed, retrying...", attempt);
+                    // will retry on next loop iteration
+                }
+            }
 
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in GetAgentResponseAsync");
-                throw;
-            }
+            return null; // fallback, should never reach here
         }
 
-
-        //public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
-        //{
-        //    try
-        //    {
-        //        var threadId = await FetchOrCreateThreadForUser();
-        //        await AddUserMessageAsync(threadId, role, message);
-
-        //        ThreadRun run = _client.Runs.CreateRun(threadId, _agent.Id);
-
-        //        do
-        //        {
-        //            Thread.Sleep(500);
-        //            run = _client.Runs.GetRun(threadId, run.Id);
-
-        //            if (run.Status == RunStatus.RequiresAction &&
-        //                run.RequiredAction is SubmitToolOutputsAction action)
-        //            {
-        //                var toolOutputs = new List<ToolOutput>();
-
-        //                foreach (var toolCall in action.ToolCalls)
-        //                {
-        //                    var result = await GetResolvedToolOutputAsync(toolCall);
-        //                    if (result != null)
-        //                        toolOutputs.Add(result);
-        //                }
-
-        //                run = _client.Runs.SubmitToolOutputsToRun(threadId, run.Id, toolOutputs);
-        //            }
-
-        //        } while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction);
-
-        //        var messages = _client.Messages.GetMessages(
-        //            threadId: threadId,
-        //            order: ListSortOrder.Descending
-        //        );
-
-        //        foreach (var msg in messages)
-        //        {
-        //            var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
-        //            _logger.LogInformation(messageText?.Text);
-        //            return messageText;
-        //        }
-
-        //        return null;
-        //    }
-        //    finally
-        //    {
-        //        //// Clean up thread
-        //        //await _client.Threads.DeleteThreadAsync(thread.Id);
-        //        //_logger.LogInformation($"Thread {thread.Id} deleted.");
-        //    }
-        //}
 
         /// <summary>
         /// Resolves a single tool call by matching it with a registered IToolHandler.

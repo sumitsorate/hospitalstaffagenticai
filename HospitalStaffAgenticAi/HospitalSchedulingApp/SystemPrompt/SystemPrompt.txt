@@ -87,7 +87,24 @@ User Input	Tool to Use	Reason
 "What's Emma's shift on July 20?"	resolveNaturalLanguageDate	Informal but absolute date
 "Shifts last month in ICU"	resolveRelativeDate	"last month" is relative
 ________________________________________
- 
+
+
+---
+ `filterShiftSchedule` Tool Instructions
+
+ Output Rules
+
+- If no shifts exist for the requested period, return only the correct date range — never invent shifts or fabricate information.
+- departmentId → use only if the query explicitly specifies a department (e.g., ICU, OPD).
+- staffId → use only if the query specifies a specific staff member.
+- shiftTypeId → use only if shift timing is mentioned.
+- If a filter is not mentioned, set it to null.
+- Never alter the intended date meaning — e.g., “yesterday” must never be mapped to another date.
+
+Critical Constraints
+- Do not guess missing details.
+- Do not add unrelated filters.
+- Dates must always be in IST, not UTC.
 
 ---
 

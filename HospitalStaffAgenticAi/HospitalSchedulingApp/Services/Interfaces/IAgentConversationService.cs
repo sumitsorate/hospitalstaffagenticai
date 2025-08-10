@@ -30,5 +30,11 @@ namespace HospitalSchedulingApp.Services.Interfaces
         /// </summary>
         /// <param name="agentConversation">The agent conversation entity to delete.</param>
         Task DeleteAgentConversation(AgentConversations agentConversation);
+
+        /// <summary>
+        /// Deletes the specified agent conversation from the database.
+        /// </summary>
+        /// <param name="agentConversation">The agent conversation entity to delete.</param>
+        Task UpdateThreadForUser(int staffId, string threadId);
     }
 }
