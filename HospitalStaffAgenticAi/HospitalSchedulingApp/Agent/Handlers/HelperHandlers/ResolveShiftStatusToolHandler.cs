@@ -1,9 +1,8 @@
 ﻿using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.Tools.Department;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
 using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
 using HospitalSchedulingApp.Common.Enums;
-using HospitalSchedulingApp.Dal.Entities;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
@@ -14,13 +13,21 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
 
         public ResolveShiftStatusToolHandler(ILogger<ResolveShiftStatusToolHandler> logger)
         {
-            _logger = logger;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public string ToolName => ResolveShiftStatusTool.GetTool().Name;
 
         public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
+            // Defensive null check for call
+            if (call == null)
+            {
+                _logger.LogError("ResolveShiftStatusToolHandler: Tool call was null.");
+                return CreateError(Guid.NewGuid().ToString(), "Invalid tool call object.");
+            }
+
+            // Extract status from JSON
             string input = root.TryGetProperty("status", out var statusProp)
                 ? statusProp.GetString()?.Trim().ToLowerInvariant() ?? string.Empty
                 : string.Empty;
@@ -31,6 +38,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 return CreateError(call.Id, "Shift status is required.");
             }
 
+            // Map known synonyms to the enum name
             string? matchedStatus = input switch
             {
                 "scheduled" or "plan" or "planned" => "Scheduled",
@@ -44,7 +52,14 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             if (matchedStatus == null)
             {
                 _logger.LogInformation("ResolveShiftStatus: Invalid input '{Input}'", input);
-                return CreateError(call.Id, $"Invalid shift status: '{input}'");
+                return CreateError(call.Id, $"Invalid shift status: '{input}'. Expected one of: Scheduled, Assigned, Completed, Cancelled, Vacant.");
+            }
+
+            // Parse enum safely
+            if (!Enum.TryParse(typeof(ShiftStatuses), matchedStatus, out var enumValue))
+            {
+                _logger.LogError("ResolveShiftStatus: Could not parse matched status '{MatchedStatus}' into ShiftStatuses enum.", matchedStatus);
+                return CreateError(call.Id, $"Internal error: Unable to parse status '{matchedStatus}'.");
             }
 
             var result = new
@@ -54,11 +69,15 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 {
                     input,
                     matchedStatus,
-                    matchedStatusValue = (int)Enum.Parse(typeof(ShiftStatuses), matchedStatus)
+                    matchedStatusValue = (int)enumValue!
                 }
             };
 
             _logger.LogInformation("ResolveShiftStatus: Mapped '{Input}' to '{MatchedStatus}'", input, matchedStatus);
+
+            // Simulate async — in case future DB/API calls are added
+            await Task.Yield();
+
             return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
         }
 
@@ -68,5 +87,4 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             return new ToolOutput(callId, JsonSerializer.Serialize(error));
         }
     }
-
 }

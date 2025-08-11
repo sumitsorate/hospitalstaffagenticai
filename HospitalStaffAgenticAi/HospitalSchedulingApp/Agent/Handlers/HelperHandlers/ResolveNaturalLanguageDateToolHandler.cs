@@ -16,25 +16,13 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
     {
         private readonly ILogger<ResolveNaturalLanguageDateToolHandler> _logger;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ResolveNaturalLanguageDateToolHandler"/> class.
-        /// </summary>
         public ResolveNaturalLanguageDateToolHandler(ILogger<ResolveNaturalLanguageDateToolHandler> logger)
         {
             _logger = logger;
         }
 
-        /// <summary>
-        /// Gets the name of the tool as declared in the tool definition.
-        /// </summary>
         public string ToolName => ResolveNaturalLanguageDateTool.GetTool().Name;
 
-        /// <summary>
-        /// Handles the tool call, resolving a natural language date input into a structured date.
-        /// </summary>
-        /// <param name="call">The function tool call information.</param>
-        /// <param name="root">The input parameters as JSON.</param>
-        /// <returns>A resolved date output or an error if resolution failed.</returns>
         public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
             string input = root.TryGetProperty("naturalDate", out var dateProp)
@@ -43,16 +31,15 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
 
             if (string.IsNullOrWhiteSpace(input))
             {
-                _logger.LogWarning("⚠️ ResolveNaturalLanguageDate: Date input is missing.");
-                return CreateError(call.Id, "❌ Date input is required.");
+                _logger.LogWarning("ResolveNaturalLanguageDate: Date input is missing.");
+                return await Task.FromResult(CreateError(call.Id, "Date input is required."));
             }
 
-            _logger.LogInformation("📥 ResolveNaturalLanguageDate: Received input '{Input}'", input);
+            _logger.LogInformation("ResolveNaturalLanguageDate: Received input '{Input}'", input);
 
-            // ✅ Normalize ordinal suffixes: e.g., "21st July" → "21 July"
+            // Normalize ordinal suffixes
             input = Regex.Replace(input, @"\b(\d{1,2})(st|nd|rd|th)\b", "$1", RegexOptions.IgnoreCase);
 
-            // 🔍 Supported custom date formats for parsing
             var formats = new[]
             {
                 "d-M-yyyy", "d/M/yyyy", "M-d-yyyy", "M/d/yyyy",
@@ -65,54 +52,51 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                 "d-M", "d/M", "M-d", "M/d"
             };
 
-            DateTime parsed = default!;
-            bool success = false;
-
-            // 📅 Try parsing with each format
-            foreach (var format in formats)
+            var parseResult = await Task.Run(() =>
             {
-                if (DateTime.TryParseExact(input, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
+                DateTime parsed = default!;
+                bool success = false;
+
+                foreach (var format in formats)
                 {
-                    // 🛠️ Default year handling if only day and month are provided
-                    if (parsed.Year == 1)
-                        parsed = parsed.AddYears(DateTime.Today.Year - 1);
+                    if (DateTime.TryParseExact(input, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
+                    {
+                        if (parsed.Year == 1)
+                            parsed = new DateTime(DateTime.Today.Year, parsed.Month, parsed.Day);
 
-                    success = true;
-                    break;
+                        success = true;
+                        return (success, parsed);
+                    }
                 }
-            }
 
-            // 🧠 Fallback to general parsing (e.g., "next Monday", "tomorrow")
-            if (!success && DateTime.TryParse(input, out parsed))
+                if (!success && DateTime.TryParse(input, out parsed))
+                {
+                    success = true;
+                }
+
+                return (success, parsed);
+            });
+
+            if (!parseResult.success)
             {
-                success = true;
+                _logger.LogWarning("ResolveNaturalLanguageDate: Unable to parse date from input '{Input}'", input);
+                return await Task.FromResult(CreateError(call.Id, $"Could not resolve date from input: '{input}'"));
             }
 
-            // ❌ Parsing failed
-            if (!success)
-            {
-                _logger.LogWarning("❗ ResolveNaturalLanguageDate: Unable to parse date from input '{Input}'", input);
-                return CreateError(call.Id, $"❌ Could not resolve date from input: '{input}'");
-            }
-
-            // ✅ Return the parsed date
             var result = new
             {
                 success = true,
                 match = new
                 {
                     input,
-                    resolvedDate = parsed.ToString("yyyy-MM-dd")
+                    resolvedDate = parseResult.parsed.ToString("yyyy-MM-dd")
                 }
             };
 
-            _logger.LogInformation("✅ ResolveNaturalLanguageDate: Resolved '{Input}' to '{ResolvedDate}'", input, result.match.resolvedDate);
-            return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
+            _logger.LogInformation("ResolveNaturalLanguageDate: Resolved '{Input}' to '{ResolvedDate}'", input, result.match.resolvedDate);
+            return await Task.FromResult(new ToolOutput(call.Id, JsonSerializer.Serialize(result)));
         }
 
-        /// <summary>
-        /// Creates a standardized error result for the tool.
-        /// </summary>
         private ToolOutput CreateError(string callId, string message)
         {
             var error = new { success = false, error = message };

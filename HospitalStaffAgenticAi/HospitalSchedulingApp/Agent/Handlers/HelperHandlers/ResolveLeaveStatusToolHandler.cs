@@ -15,9 +15,14 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
         {
             _logger = logger;
         }
+
         public string ToolName => ResolveLeaveStatusTool.GetTool().Name;
+
         public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
+            // Simulate async — useful for future DB/API lookups
+            await Task.Yield();
+
             string input = root.TryGetProperty("status", out var statusProp)
                 ? statusProp.GetString()?.Trim().ToLowerInvariant() ?? string.Empty
                 : string.Empty;
@@ -31,8 +36,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             string? matchedStatus = input switch
             {
                 "pending" or "in progress" or "awaiting" or "waiting" => "Pending",
-                "approved" or "approve" or "accept" or "accepted" or "granter" => "Approved",
-                "rejected" or "deny" or "denied" or "refused" => "Rejected",
+                "approved" or "approve" or "accept" or "accepted" or "granted" => "Approved",
+                "rejected" or "reject" or "deny" or "denied" or "refused" => "Rejected",
                 _ => null
             };
 
@@ -63,5 +68,4 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             return new ToolOutput(callId, JsonSerializer.Serialize(error));
         }
     }
-
 }

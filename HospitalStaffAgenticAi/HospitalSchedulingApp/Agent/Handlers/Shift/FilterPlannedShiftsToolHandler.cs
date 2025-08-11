@@ -59,10 +59,21 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
 
                 var results = await _plannedShiftService.FetchFilteredPlannedShiftsAsync(filter);
 
-                var json = JsonSerializer.Serialize(results, new JsonSerializerOptions
+                // Success response
+                var response = new
                 {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                });
+                    success = true,
+                    message = $"✅ Shifts Fetched Successfully",
+                    shift = results
+                };
+
+                string json = JsonSerializer.Serialize(response);
+                _logger.LogInformation("New planned shift added: {Json}", json);
+
+                //var json = JsonSerializer.Serialize(results, new JsonSerializerOptions
+                //{
+                //    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                //});
 
                 return new ToolOutput(call.Id, json);
             }

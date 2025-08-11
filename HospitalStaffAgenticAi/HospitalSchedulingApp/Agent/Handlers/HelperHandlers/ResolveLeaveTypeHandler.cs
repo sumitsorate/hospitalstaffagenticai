@@ -1,7 +1,7 @@
 ﻿using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
 using HospitalSchedulingApp.Common.Enums;
-using HospitalSchedulingApp.Dal.Entities;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
@@ -9,6 +9,21 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
     public class ResolveLeaveTypeToolHandler : IToolHandler
     {
         private readonly ILogger<ResolveLeaveTypeToolHandler> _logger;
+
+        private static readonly Dictionary<string, LeaveType> LeaveTypeSynonyms = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "sick", LeaveType.Sick },
+            { "illness", LeaveType.Sick },
+            { "medical", LeaveType.Sick },
+            { "casual", LeaveType.Casual },
+            { "personal", LeaveType.Casual },
+            { "urgent", LeaveType.Casual },
+            { "vacation", LeaveType.Vacation },
+            { "holiday", LeaveType.Vacation },
+            { "annual", LeaveType.Vacation },
+            { "earned", LeaveType.Vacation },
+            { "leave", LeaveType.Vacation }
+        };
 
         public ResolveLeaveTypeToolHandler(ILogger<ResolveLeaveTypeToolHandler> logger)
         {
@@ -29,18 +44,11 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                 return CreateError(call.Id, "Leave type is required.");
             }
 
-            string? matchedType = input switch
-            {
-                "sick" or "illness" or "medical" => "Sick",
-                "casual" or "personal" or "urgent" => "Casual",
-                "vacation" or "holiday" or "leave" => "Vacation",
-                _ => null
-            };
-
-            if (matchedType == null)
+            if (!LeaveTypeSynonyms.TryGetValue(input, out var leaveType))
             {
                 _logger.LogInformation("ResolveLeaveType: Invalid input '{Input}'", input);
-                return CreateError(call.Id, $"Invalid leave type: '{input}'. Valid types are Sick, Casual, or Vacation.");
+                var validTypes = string.Join(", ", Enum.GetNames(typeof(LeaveType)));
+                return CreateError(call.Id, $"Invalid leave type: '{input}'. Valid types are: {validTypes}.");
             }
 
             var result = new
@@ -49,12 +57,12 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                 match = new
                 {
                     input,
-                    matchedType,
-                    matchedTypeValue = (int)Enum.Parse(typeof(LeaveType), matchedType)
+                    matchedType = leaveType.ToString(),
+                    matchedTypeValue = (int)leaveType
                 }
             };
 
-            _logger.LogInformation("ResolveLeaveType: Mapped '{Input}' to '{MatchedType}'", input, matchedType);
+            _logger.LogInformation("ResolveLeaveType: Mapped '{Input}' to '{MatchedType}'", input, leaveType);
             return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
         }
 
