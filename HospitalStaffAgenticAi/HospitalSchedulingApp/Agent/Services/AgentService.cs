@@ -279,13 +279,6 @@ namespace HospitalSchedulingApp.Agent.Services
                         if (run.Status == RunStatus.RequiresAction &&
                             run.RequiredAction is SubmitToolOutputsAction action)
                         {
-                            //var toolOutputs = new List<ToolOutput>();
-                            //foreach (var toolCall in action.ToolCalls)
-                            //{
-                            //    var result = await GetResolvedToolOutputAsync(toolCall);
-                            //    if (result != null)
-                            //        toolOutputs.Add(result);
-                            //}
                             var tasks = action.ToolCalls.Select(tc => GetResolvedToolOutputAsync(tc));
                             var results = await Task.WhenAll(tasks);
                             var toolOutputs = results.Where(r => r != null).ToList();
