@@ -1,9 +1,12 @@
-﻿using Azure.AI.Agents.Persistent;
+﻿using Azure;
+using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Handlers;
 using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dtos.Auth;
 using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Threading;
 
@@ -187,105 +190,6 @@ namespace HospitalSchedulingApp.Agent.Services
 
         }
 
-        public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
-        {
-            int maxRetries = 5;
-            int retryDelaySeconds = 3;
-
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
-            {
-                try
-                {
-                    var threadId = await FetchOrCreateThreadForUser();
-                    await _client.Messages.CreateMessageAsync(threadId, MessageRole.User, message);
-
-                    ThreadRun run = await _client.Runs.CreateRunAsync(threadId, _agent.Id);
-
-                    do
-                    {
-                        await Task.Delay(500);
-                        run = await _client.Runs.GetRunAsync(threadId, run.Id);
-
-                        if (run.Status == RunStatus.RequiresAction &&
-                            run.RequiredAction is SubmitToolOutputsAction action)
-                        {
-                            var toolOutputs = new List<ToolOutput>();
-                            foreach (var toolCall in action.ToolCalls)
-                            {
-                                var result = await GetResolvedToolOutputAsync(toolCall);
-                                if (result != null)
-                                    toolOutputs.Add(result);
-                            }
-                            run = await _client.Runs.SubmitToolOutputsToRunAsync(threadId, run.Id, toolOutputs);
-                        }
-
-                        // Check if run failed
-                        if (run.Status == RunStatus.Failed && run.LastError != null)
-                        {
-                            if (!string.IsNullOrEmpty(run.LastError.Code) && run.LastError.Code.Contains("rate_limit_exceeded", StringComparison.OrdinalIgnoreCase))
-                            {
-                                _logger.LogWarning("Rate limit exceeded. Waiting {RetryDelaySeconds} seconds before retrying attempt {Attempt}/{MaxRetries}.", retryDelaySeconds, attempt, maxRetries);
-
-                                await Task.Delay(retryDelaySeconds * 1000);
-
-                                throw new Exception("Rate limit exceeded, retrying...");
-                            }
-                            else
-                            {
-                                _logger.LogError("Run failed with error code: {Code}, message: {Message}", run.LastError.Code, run.LastError.Message);
-                                break; // Exit retry loop on other errors
-                            }
-                        }
-
-                    }
-                    while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction);
-
-                    //var messages = _client.Messages.GetMessages(threadId, order: ListSortOrder.Descending);
-
-                    //foreach (var msg in messages)
-                    //{
-                    //    var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
-                    //    _logger.LogInformation("Returning message content: {Text}", messageText?.Text);
-                    //    return messageText;
-                    //}
-
-                    //return null;
-
-                    var messages = _client.Messages.GetMessages(threadId, runId: run.Id, order: ListSortOrder.Descending);
-                    foreach (var msg in messages)
-                    {
-                        if (msg.Role == MessageRole.Agent)  // Only consider assistant/bot replies
-                        {
-                            var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
-                            if (messageText != null)
-                            {
-                                _logger.LogInformation("Returning message content: {Text}", messageText.Text);
-                                return messageText;
-                            }
-                        }
-                    }
-
-                    // If no assistant message found, return a fallback error message
-                    _logger.LogWarning("No assistant response found in messages after run completion.");
-                      
-                }
-                catch (Exception ex)
-                {
-                    if (attempt == maxRetries)
-                    {
-                        _logger.LogError(ex, "Failed after {MaxRetries} attempts due to rate limit or other errors.", maxRetries);
-                        throw; // rethrow after max retries
-                    }
-
-                    _logger.LogWarning(ex, "Attempt {Attempt} failed, retrying...", attempt);
-                    // will retry on next loop iteration
-                }
-            }
-
-            return null; // fallback, should never reach here
-        }
-
-
         /// <summary>
         /// Resolves a single tool call by matching it with a registered IToolHandler.
         /// </summary>
@@ -317,17 +221,141 @@ namespace HospitalSchedulingApp.Agent.Services
                 return null;
             }
         }
+        private int _apiCallCount = 0;
+
+        private async Task<T> CallAzureApiAsync<T>(Func<Task<T>> apiCall, string apiName, string? details = null)
+        {
+            _apiCallCount++;
+            _logger.LogInformation("Azure API call #{Count} - {ApiName} {Details}", _apiCallCount, apiName, details ?? "");
+
+            var stopwatch = Stopwatch.StartNew();
+            var result = await apiCall();
+            stopwatch.Stop();
+
+            _logger.LogInformation("{ApiName} completed in {ElapsedMilliseconds} ms", apiName, stopwatch.ElapsedMilliseconds);
+
+            return result;
+        }
+
+        public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
+        {
+            int maxRetries = 5;
+            int baseDelayMs = 5000;
+            int maxDelayMs = 25000;
+
+            var threadId = await FetchOrCreateThreadForUser();
+
+            _logger.LogInformation("Sending user message of length {Length} characters", message.Length);
+
+            // Create message and run once outside retry loop
+            await CallAzureApiAsync(
+                () => _client.Messages.CreateMessageAsync(threadId, MessageRole.User, message),
+                "CreateMessageAsync",
+                $"message length={message.Length}");
+
+            ThreadRun run = await CallAzureApiAsync(
+                () => _client.Runs.CreateRunAsync(threadId, _agent.Id),
+                "CreateRunAsync",
+                $"agentId={_agent.Id}");
+
+            int delayMs = baseDelayMs;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    do
+                    {
+                        await Task.Delay(delayMs);
+
+                        run = await CallAzureApiAsync(
+                            () => _client.Runs.GetRunAsync(threadId, run.Id),
+                            "GetRunAsync",
+                            $"runId={run.Id}");
+
+                        // Increase delay exponentially with max cap
+                        delayMs = Math.Min(delayMs * 2, maxDelayMs);
+
+                        if (run.Status == RunStatus.RequiresAction &&
+                            run.RequiredAction is SubmitToolOutputsAction action)
+                        {
+                            //var toolOutputs = new List<ToolOutput>();
+                            //foreach (var toolCall in action.ToolCalls)
+                            //{
+                            //    var result = await GetResolvedToolOutputAsync(toolCall);
+                            //    if (result != null)
+                            //        toolOutputs.Add(result);
+                            //}
+                            var tasks = action.ToolCalls.Select(tc => GetResolvedToolOutputAsync(tc));
+                            var results = await Task.WhenAll(tasks);
+                            var toolOutputs = results.Where(r => r != null).ToList();
+
+                            run = await CallAzureApiAsync(
+                                () => _client.Runs.SubmitToolOutputsToRunAsync(threadId, run.Id, toolOutputs),
+                                "SubmitToolOutputsToRunAsync",
+                                $"runId={run.Id}, toolCalls={toolOutputs.Count}");
+                        }
+
+                        if (run.Status == RunStatus.Failed && run.LastError != null)
+                        {
+                            if (!string.IsNullOrEmpty(run.LastError.Code) &&
+                                run.LastError.Code.Contains("rate_limit_exceeded", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Log and throw to catch block for retry
+                                _logger.LogWarning("Rate limit exceeded. Retrying attempt {Attempt}/{MaxRetries} after delay {Delay}ms.", attempt, maxRetries, delayMs);
+                                throw new Exception("Rate limit exceeded, retrying...");
+                            }
+                            else
+                            {
+                                _logger.LogError("Run failed with error code: {Code}, message: {Message}", run.LastError.Code, run.LastError.Message);
+                                // Exit retry loop on other errors
+                                return null;
+                            }
+                        }
+
+                    } while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction);
+
+                    var messages = await CallAzureApiAsync(
+                        () => Task.FromResult(_client.Messages.GetMessages(threadId, runId: run.Id, order: ListSortOrder.Descending)),
+                        "GetMessages",
+                        $"runId={run.Id}");
+
+                    foreach (var msg in messages)
+                    {
+                        if (msg.Role == MessageRole.Agent)
+                        {
+                            var messageText = msg.ContentItems.OfType<MessageTextContent>().FirstOrDefault();
+                            if (messageText != null)
+                            {
+                                _logger.LogInformation("Returning message content: {Text}", messageText.Text);
+                                return messageText;
+                            }
+                        }
+                    }
+
+                    _logger.LogWarning("No assistant response found in messages after run completion.");
+                    return null;
+                }
+                catch (Exception ex)
+                {
+                    if (attempt == maxRetries)
+                    {
+                        _logger.LogError(ex, "Failed after {MaxRetries} attempts due to rate limit or other errors.", maxRetries);
+                        throw;
+                    }
+
+                    // Exponential backoff with jitter on retry delay
+                    var jitter = new Random().Next(500, 1500);
+                    var retryDelay = Math.Min(delayMs * attempt, maxDelayMs) + jitter;
+
+                    _logger.LogWarning(ex, "Attempt {Attempt} failed, retrying after {RetryDelay}ms...", attempt, retryDelay);
+
+                    await Task.Delay(retryDelay);
+                }
+            }
+
+            return null;
+        }
 
     }
 }
-
-
-//var threads =  _client.Threads.GetThreads();
-//foreach (var item in threads)
-//{
-//    await _client.Threads.DeleteThreadAsync(item.Id);
-//}
-
-// _logger.LogInformation($"Thread {thread.Id} deleted.");
-//var thread = CreateThread();
-//threadId =  thread.Id;
