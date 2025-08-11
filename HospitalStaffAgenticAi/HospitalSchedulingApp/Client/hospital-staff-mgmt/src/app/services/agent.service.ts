@@ -17,4 +17,8 @@ export class AgentService {
     return this.http.post<ChatResponse>('http://localhost:5029/api/AgentChat/ask', body);
 
   }
+
+  refresh( ): Observable<any> {
+    return this.http.post<any>('http://localhost:5029/api/AgentChat/refresh', {});
+  }
 }
