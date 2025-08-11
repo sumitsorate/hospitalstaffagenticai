@@ -1,6 +1,7 @@
 ﻿using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Handlers;
 using HospitalSchedulingApp.Dal.Entities;
+using HospitalSchedulingApp.Dtos.Auth;
 using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
 using System.Text.Json;
@@ -38,6 +39,23 @@ namespace HospitalSchedulingApp.Agent.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _agentConversationService = agentConversationService;
             _userContextService = userContextService;
+
+        }
+
+        /// <summary>
+        /// Creates a new persistent agent thread for communication.
+        /// </summary>
+        public async Task<string> Refresh()
+        {
+            // Delete thread for currently logged in user
+            await DeleteThreadForUserAsync();
+            // Create a new thread for the user
+            var staffId = _userContextService.GetStaffId();
+
+            // Create new thread for user
+            var threadId = await FetchOrCreateThreadForUser(staffId);
+
+            return threadId;
 
         }
         /// <summary>
@@ -168,10 +186,11 @@ namespace HospitalSchedulingApp.Agent.Services
             await _client.Messages.CreateMessageAsync(threadId, MessageRole.User, message);
 
         }
+
         public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
         {
-            int maxRetries = 3;
-            int retryDelaySeconds = 2;
+            int maxRetries = 5;
+            int retryDelaySeconds = 3;
 
             for (int attempt = 1; attempt <= maxRetries; attempt++)
             {

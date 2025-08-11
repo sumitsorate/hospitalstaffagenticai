@@ -27,7 +27,7 @@ namespace HospitalSchedulingApp.Controllers
         /// <param name="agentService">Service to handle agent communication.</param>
         public AgentChatController(IAgentService agentService,
             IAgentConversationService agentConversationService,
-            IAgentInsightsService agentInsightsService) 
+            IAgentInsightsService agentInsightsService)
         {
             _agentService = agentService;
             _agentConversationService = agentConversationService;
@@ -43,7 +43,7 @@ namespace HospitalSchedulingApp.Controllers
         public async Task<IActionResult> AskAgent([FromBody] UserMessageRequestDto request)
         {
 
-            var response = await _agentService.GetAgentResponseAsync(  MessageRole.User, request.Message);
+            var response = await _agentService.GetAgentResponseAsync(MessageRole.User, request.Message);
 
             if (response is MessageTextContent textResponse)
             {
@@ -53,6 +53,18 @@ namespace HospitalSchedulingApp.Controllers
             return BadRequest("No valid response from agent.");
         }
 
+
+        /// <summary>
+        /// Sends a user message to the persistent agent and returns the agent's response.
+        /// </summary>
+        /// <param name = "request" > The message input from the user.</param>
+        /// <returns>A response from the agent or a bad request if the response is invalid.</returns>
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] UserMessageRequestDto request)
+        {
+            var threadId = await _agentService.Refresh();
+            return Ok(new { threadId = threadId });
+        }
 
         // Backend controller
         [HttpGet("daily-summary")]

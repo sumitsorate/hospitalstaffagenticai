@@ -1,4 +1,5 @@
 ﻿using Azure.AI.Agents.Persistent;
+using HospitalSchedulingApp.Dtos.Auth;
 
 namespace HospitalSchedulingApp.Agent.Services
 {
@@ -15,5 +16,7 @@ namespace HospitalSchedulingApp.Agent.Services
         Task DeleteThreadForUserAsync();
 
         Task<string> FetchOrCreateThreadForUser(int? staffId = null);
+
+        Task<string> Refresh();
     }
 }

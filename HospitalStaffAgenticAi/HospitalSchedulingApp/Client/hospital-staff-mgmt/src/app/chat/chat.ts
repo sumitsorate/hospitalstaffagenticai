@@ -50,16 +50,7 @@ export class Chat implements OnInit {
 
 
 
-  loadSmartSuggestions(): void {
-    // // Load proactive action suggestions
-    // this.smartSuggestionService.getSmartSuggestions().subscribe({
-    //   next: (data: SmartSuggestion[]) => {
-    //     this.suggestions = data;
-    //   },
-    //   error: (err: any) => {
-    //     console.error('Failed to load smart suggestions', err);
-    //   }
-    // });
+  loadSmartSuggestions(): void {   
 
     // Show typing animation first
     this.isWaiting = true;
@@ -188,6 +179,7 @@ export class Chat implements OnInit {
 
   resetConversation() {
     this.messages = [];
+    this.refresh();
     this.loadSmartSuggestions();
   }
 
@@ -200,6 +192,20 @@ export class Chat implements OnInit {
       // this.loadSmartSuggestions(); // Reload suggestions when chat is opened
       this.scrollToBottom(); // Ensure chat scrolls to bottom on open
     }
+  }
+
+  refresh() {
+        // Call agent service with the actual message (either typed or from chip)
+    this.agentService.refresh().subscribe({
+      next: (response) => {
+        console.log(response);
+        console.log(response.threadId);
+        localStorage.setItem("threadId",response.threadId)
+      },
+      error: (error) => {
+        console.error('Agent error:', error);  
+      }
+    });
   }
 
   getGreetingMessage(): string {
