@@ -1,4 +1,5 @@
 ﻿using Azure.AI.Agents.Persistent;
+using HospitalSchedulingApp.Agent.MetaResolver;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
 using HospitalSchedulingApp.Common.Enums;
 using Microsoft.Extensions.Logging;
@@ -9,24 +10,13 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
     public class ResolveLeaveTypeToolHandler : IToolHandler
     {
         private readonly ILogger<ResolveLeaveTypeToolHandler> _logger;
+        private readonly IEntityResolver _entityResolver;
 
-        private static readonly Dictionary<string, LeaveType> LeaveTypeSynonyms = new(StringComparer.OrdinalIgnoreCase)
+        public ResolveLeaveTypeToolHandler(
+            IEntityResolver entityResolver,
+            ILogger<ResolveLeaveTypeToolHandler> logger)
         {
-            { "sick", LeaveType.Sick },
-            { "illness", LeaveType.Sick },
-            { "medical", LeaveType.Sick },
-            { "casual", LeaveType.Casual },
-            { "personal", LeaveType.Casual },
-            { "urgent", LeaveType.Casual },
-            { "vacation", LeaveType.Vacation },
-            { "holiday", LeaveType.Vacation },
-            { "annual", LeaveType.Vacation },
-            { "earned", LeaveType.Vacation },
-            { "leave", LeaveType.Vacation }
-        };
-
-        public ResolveLeaveTypeToolHandler(ILogger<ResolveLeaveTypeToolHandler> logger)
-        {
+            _entityResolver = entityResolver;
             _logger = logger;
         }
 
@@ -35,7 +25,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
         public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
             string input = root.TryGetProperty("leaveType", out var leaveProp)
-                ? leaveProp.GetString()?.Trim().ToLowerInvariant() ?? string.Empty
+                ? leaveProp.GetString()?.Trim() ?? string.Empty
                 : string.Empty;
 
             if (string.IsNullOrWhiteSpace(input))
@@ -44,12 +34,20 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                 return CreateError(call.Id, "Leave type is required.");
             }
 
-            if (!LeaveTypeSynonyms.TryGetValue(input, out var leaveType))
+            // Use EntityResolver to resolve entities including LeaveType
+            var resolveResult = await _entityResolver.ResolveEntitiesAsync(input);
+
+            var leaveTypeEntity = resolveResult.LeaveType;
+
+            if (leaveTypeEntity == null)
             {
-                _logger.LogInformation("ResolveLeaveType: Invalid input '{Input}'", input);
+                _logger.LogInformation("ResolveLeaveType: No matching leave type found for input '{Input}'", input);
                 var validTypes = string.Join(", ", Enum.GetNames(typeof(LeaveType)));
                 return CreateError(call.Id, $"Invalid leave type: '{input}'. Valid types are: {validTypes}.");
             }
+
+            var matchedTypeName = leaveTypeEntity.LeaveTypeName;
+            var matchedTypeValue = (int)Enum.Parse(typeof(LeaveType), matchedTypeName);
 
             var result = new
             {
@@ -57,12 +55,12 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                 match = new
                 {
                     input,
-                    matchedType = leaveType.ToString(),
-                    matchedTypeValue = (int)leaveType
+                    matchedType = matchedTypeName,
+                    matchedTypeValue
                 }
             };
 
-            _logger.LogInformation("ResolveLeaveType: Mapped '{Input}' to '{MatchedType}'", input, leaveType);
+            _logger.LogInformation("ResolveLeaveType: Mapped '{Input}' to '{MatchedType}'", input, matchedTypeName);
             return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
         }
 

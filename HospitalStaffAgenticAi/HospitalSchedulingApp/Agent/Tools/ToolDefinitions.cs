@@ -1,4 +1,5 @@
 ﻿using Azure.AI.Agents.Persistent;
+using HospitalSchedulingApp.Agent.MetaResolver;
 using HospitalSchedulingApp.Agent.Tools.Department;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
 using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
@@ -11,6 +12,7 @@ namespace HospitalSchedulingApp.Agent.Tools
     {
         public static IReadOnlyList<FunctionToolDefinition> All => new[]
         {
+            ResolveEntitiesTool.GetTool(),
             FilterShiftScheduleTool.GetTool(),
             ResolveDepartmentInfoTool.GetTool(),
             ResolveStaffInfoByNameTool.GetTool(),

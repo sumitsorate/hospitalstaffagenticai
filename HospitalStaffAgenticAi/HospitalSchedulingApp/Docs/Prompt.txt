@@ -16,8 +16,7 @@ Talk to Schedule :
 6. Show me the shift schedule of Emma --
 
 7. Give me schedule between 1st Aug 2025 and 30 Aug 2025 schedule for Emma. --
-
-8. Give me OPD schedule for next Monday. -- not wokring
+ 
 
 9. Show me the ICU department's schedule for this week --
 
@@ -33,13 +32,13 @@ Talk to Schedule :
 
 2.  Who can work night shift 13st aug 2025? --
 
-3. Who can work Monring shift 14st aug 2025? --
+3. Who can work Morning shift 14st aug 2025? --
 
 2. Who can work tomorrow's night shift for pediatrics department? --
-3.  Who can work 15st aug 2025 night shift for pediatrics department? --
+3.  Who can work 15th aug 2025 night shift for pediatrics department? --
 
 3.  Who is free to work the night shift tomorrow? --
- 4. Who is free to work the night shift between 1st Aug 2025 to 3rd Aug 2025?  - -  And condition
+ 4. Who is free to work the night shift between 14st Aug 2025 to 15rd Aug 2025?  - -  And condition
 
 4. Find someone available for the ICU morning shift on 13rd Aug 2025.
 

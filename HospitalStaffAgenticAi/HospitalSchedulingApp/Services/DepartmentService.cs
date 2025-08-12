@@ -20,9 +20,22 @@ namespace HospitalSchedulingApp.Services
 
             var departments = await _departmentRepo.GetAllAsync();
 
+            var tokens = departmentNamePart
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrEmpty(t))
+                .ToArray();
+
+            // Find first department whose name contains any token (case-insensitive)
             var department = departments
-                .FirstOrDefault(d => d.DepartmentName?.Contains(departmentNamePart.Trim(),
-                StringComparison.OrdinalIgnoreCase) == true);
+                .FirstOrDefault(d => tokens.Any(token =>
+                    d.DepartmentName?.Contains(token, StringComparison.OrdinalIgnoreCase) == true));
+
+            //return department;
+
+            //var department = departments
+            //    .FirstOrDefault(d => d.DepartmentName?.Contains(departmentNamePart.Trim(),
+            //    StringComparison.OrdinalIgnoreCase) == true);
 
 
             return department;

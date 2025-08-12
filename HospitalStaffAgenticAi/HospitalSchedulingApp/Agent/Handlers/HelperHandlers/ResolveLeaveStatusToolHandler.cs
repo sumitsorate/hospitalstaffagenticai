@@ -1,8 +1,9 @@
 ﻿using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.Tools.Department;
+using HospitalSchedulingApp.Agent.MetaResolver;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
 using HospitalSchedulingApp.Common.Enums;
-using HospitalSchedulingApp.Dal.Entities;
+using HospitalSchedulingApp.Dal.Repositories;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
@@ -10,9 +11,13 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
     public class ResolveLeaveStatusToolHandler : IToolHandler
     {
         private readonly ILogger<ResolveLeaveStatusToolHandler> _logger;
+        private readonly IEntityResolver _entityResolver;
 
-        public ResolveLeaveStatusToolHandler(ILogger<ResolveLeaveStatusToolHandler> logger)
+        public ResolveLeaveStatusToolHandler(
+            IEntityResolver entityResolver,
+            ILogger<ResolveLeaveStatusToolHandler> logger)
         {
+            _entityResolver = entityResolver;
             _logger = logger;
         }
 
@@ -20,11 +25,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
 
         public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
-            // Simulate async — useful for future DB/API lookups
-            await Task.Yield();
-
             string input = root.TryGetProperty("status", out var statusProp)
-                ? statusProp.GetString()?.Trim().ToLowerInvariant() ?? string.Empty
+                ? statusProp.GetString()?.Trim() ?? string.Empty
                 : string.Empty;
 
             if (string.IsNullOrWhiteSpace(input))
@@ -33,19 +35,19 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 return CreateError(call.Id, "Leave status is required.");
             }
 
-            string? matchedStatus = input switch
-            {
-                "pending" or "in progress" or "awaiting" or "waiting" => "Pending",
-                "approved" or "approve" or "accept" or "accepted" or "granted" => "Approved",
-                "rejected" or "reject" or "deny" or "denied" or "refused" => "Rejected",
-                _ => null
-            };
+            // Use EntityResolver to parse entities from input phrase
+            var resolveResult = await _entityResolver.ResolveEntitiesAsync(input);
 
-            if (matchedStatus == null)
+            var leaveStatus = resolveResult.LeaveStatus;
+
+            if (leaveStatus == null)
             {
-                _logger.LogInformation("ResolveLeaveStatus: Invalid input '{Input}'", input);
+                _logger.LogInformation("ResolveLeaveStatus: No matching leave status found for input '{Input}'", input);
                 return CreateError(call.Id, $"Invalid leave status: '{input}'");
             }
+
+            var matchedStatusName = leaveStatus.LeaveStatusName;
+            var matchedStatusValue = (int)Enum.Parse(typeof(LeaveRequestStatuses), matchedStatusName);
 
             var result = new
             {
@@ -53,12 +55,12 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 match = new
                 {
                     input,
-                    matchedStatus,
-                    matchedStatusValue = (int)Enum.Parse(typeof(LeaveRequestStatuses), matchedStatus)
+                    matchedStatus = matchedStatusName,
+                    matchedStatusValue
                 }
             };
 
-            _logger.LogInformation("ResolveLeaveStatus: Mapped '{Input}' to '{MatchedStatus}'", input, matchedStatus);
+            _logger.LogInformation("ResolveLeaveStatus: Mapped '{Input}' to '{MatchedStatus}'", input, matchedStatusName);
             return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
         }
 

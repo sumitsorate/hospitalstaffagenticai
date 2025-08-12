@@ -9,6 +9,7 @@ using HospitalSchedulingApp.Agent.Handlers.LeaveRequest;
 using HospitalSchedulingApp.Agent.Handlers.Shift;
 using HospitalSchedulingApp.Agent.Handlers.Shift.HospitalSchedulingApp.Agent.Handlers;
 using HospitalSchedulingApp.Agent.Handlers.Staff;
+using HospitalSchedulingApp.Agent.MetaResolver;
 using HospitalSchedulingApp.Agent.Services;
 using HospitalSchedulingApp.Dal.Data;
 using HospitalSchedulingApp.Dal.Repositories;
@@ -136,6 +137,24 @@ builder.Services.AddScoped<IToolHandler, ResolveNaturalLanguageDateToolHandler>(
 builder.Services.AddScoped<IToolHandler, SubmitShiftSwapRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, UnassignShiftFromStaffToolHandler>();
 builder.Services.AddScoped<IToolHandler, AddNewPlannedShiftToolHandler>();
+builder.Services.AddScoped<IToolHandler, ResolveEntitiesToolHandler>();
+
+builder.Services.AddScoped<IEntityResolver, EntityResolver>();
+//builder.Services.AddScoped<ResolveDepartmentInfoToolHandler>();
+//builder.Services.AddScoped<ResolveStaffInfoByNameToolHandler>();
+//builder.Services.AddScoped<ResolveShiftStatusToolHandler>();
+//builder.Services.AddScoped<ResolveShiftTypeToolHandler>();
+//builder.Services.AddScoped<ResolveLeaveStatusToolHandler>();
+//builder.Services.AddScoped<ResolveLeaveTypeToolHandler>();
+//builder.Services.AddScoped<ResolveLoggedInUserRoleToolHandler>();
+
+
+
+// Register other handlers similarly
+
+
+// Add other tool handlers similarly
+
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();

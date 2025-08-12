@@ -68,7 +68,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
                 };
 
                 string json = JsonSerializer.Serialize(response);
-                _logger.LogInformation("New planned shift added: {Json}", json);
+                _logger.LogInformation("Shifts Fetched Successfully: {Json}", json);
 
                 //var json = JsonSerializer.Serialize(results, new JsonSerializerOptions
                 //{
