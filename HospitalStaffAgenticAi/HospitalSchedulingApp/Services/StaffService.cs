@@ -62,14 +62,9 @@ namespace HospitalSchedulingApp.Services
             var roles = await _roleRepo.GetAllAsync();
             var departments = await _departmentRepo.GetAllAsync();
 
-            var tokens = namePart
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Select(t => t.Trim())
-                .Where(t => !string.IsNullOrEmpty(t))
-                .ToArray();
-
+            // Direct full name match (case-insensitive)
             var filtered = staffList
-                .Where(s => s.IsActive && tokens.Any(token => s.StaffName.Contains(token, StringComparison.OrdinalIgnoreCase)))
+                .Where(s => s.IsActive && s.StaffName.Contains(namePart, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(s => s.StaffName)
                 .Take(10)
                 .Select(s => new StaffDto

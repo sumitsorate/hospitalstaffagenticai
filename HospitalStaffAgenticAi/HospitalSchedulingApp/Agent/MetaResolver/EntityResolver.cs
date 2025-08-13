@@ -93,67 +93,31 @@ namespace HospitalSchedulingApp.Agent.MetaResolver
             _logger.LogInformation("Resolving entities for: {Phrase}", phrase);
 
             var tokens = phrase.Trim().ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+             
 
-            var dateRange = ParseDatesFromPhrase(phrase);
-
-            var department = await ResolveDepartmentAsync(phrase);
-            var staff = await ResolveStaffAsync(phrase);
+            var department = await ResolveDepartmentAsync(phrase); 
             var shiftType = await ResolveShiftTypeAsync(tokens);
             var shiftStatus = await ResolveShiftStatusAsync(tokens);
             var leaveStatus = await ResolveLeaveStatusAsync(tokens, phrase);
             var leaveType = await ResolveLeaveTypeAsync(tokens, phrase);
             var role = await ResolveUserRoleAsync();
 
+            
             return new ResolveEntitiesResult
             {
-                Department = department,
-                Staff = staff,
+                Department = department,              
                 ShiftType = shiftType,
                 ShiftStatus = shiftStatus,
                 LeaveStatus = leaveStatus,
                 LeaveType = leaveType,
                 LoggedInUserRole = role,
-                DateRange = dateRange
+                
             };
         }
 
         #region Resolution Methods
 
-        private DateRange? ParseDatesFromPhrase(string phrase)
-        {
-            var normalized = Regex.Replace(phrase.Trim(), @"\b(\d{1,2})(st|nd|rd|th)\b", "$1", RegexOptions.IgnoreCase);
-            var parts = Regex.Split(normalized, @"\s*(?:to|-|and|,)\s*", RegexOptions.IgnoreCase);
-
-            var formats = new[]
-            {
-                "d MMM yyyy","dd MMM yyyy","d MMMM yyyy","dd MMMM yyyy",
-                "MMM d yyyy","MMMM d yyyy","MMM dd yyyy","MMMM dd yyyy",
-                "d/M/yyyy","dd/MM/yyyy","d-M-yyyy","dd-MM-yyyy",
-                "yyyy-MM-dd","d MMM","dd MMM","d MMMM","dd MMMM",
-                "MMM d","MMMM d","MMM dd","MMMM dd"
-            };
-
-            var parsedDates = new List<DateTime>();
-            int currentYear = DateTime.UtcNow.Year;
-
-            foreach (var part in parts)
-            {
-                if (DateTime.TryParseExact(part.Trim(), formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) ||
-                    DateTime.TryParse(part.Trim(), out dt))
-                {
-                    if (dt.Year == 1)
-                        dt = new DateTime(currentYear, dt.Month, dt.Day);
-
-                    parsedDates.Add(dt.Date);
-                }
-            }
-
-            if (!parsedDates.Any()) return null;
-
-            parsedDates = parsedDates.OrderBy(d => d).ToList();
-            return new DateRange { StartDate = parsedDates.First(), EndDate = parsedDates.Last() };
-        }
-
+ 
         private async Task<Department?> ResolveDepartmentAsync(string phrase) =>
             await _departmentService.FetchDepartmentInformationAsync(phrase.ToLower());
 

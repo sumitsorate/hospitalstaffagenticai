@@ -34,11 +34,9 @@ public class ResolveEntitiesToolHandler : IToolHandler
             resolved.Department,
             resolved.ShiftType,
             resolved.ShiftStatus,
-            resolved.Staff,
             resolved.LeaveStatus,
             resolved.LeaveType,
             resolved.LoggedInUserRole,
-            resolved.DateRange
         };
 
         return new ToolOutput(call.Id, JsonSerializer.Serialize(result));

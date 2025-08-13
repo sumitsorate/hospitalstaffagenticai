@@ -1,5 +1,4 @@
 ﻿using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.MetaResolver;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
@@ -15,13 +14,10 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
     public class ResolveNaturalLanguageDateToolHandler : IToolHandler
     {
         private readonly ILogger<ResolveNaturalLanguageDateToolHandler> _logger;
-        private readonly IEntityResolver _entityResolver;
 
-        public ResolveNaturalLanguageDateToolHandler(ILogger<ResolveNaturalLanguageDateToolHandler> logger,
-            IEntityResolver entityResolver)
+        public ResolveNaturalLanguageDateToolHandler(ILogger<ResolveNaturalLanguageDateToolHandler> logger)
         {
             _logger = logger;
-            _entityResolver = entityResolver;
         }
 
         public string ToolName => ResolveNaturalLanguageDateTool.GetTool().Name;
@@ -35,7 +31,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
             if (string.IsNullOrWhiteSpace(input))
             {
                 _logger.LogWarning("ResolveNaturalLanguageDate: Date input is missing.");
-                return await Task.FromResult(CreateError(call.Id, "Date input is required."));
+                return CreateError(call.Id, "Date input is required.");
             }
 
             _logger.LogInformation("ResolveNaturalLanguageDate: Received input '{Input}'", input);
@@ -64,8 +60,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                 string candidate = part.Trim();
                 if (string.IsNullOrEmpty(candidate)) continue;
 
-                // Try exact formats first
-                if (DateTime.TryParseExact(candidate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt))
+                if (DateTime.TryParseExact(candidate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt) ||
+                    DateTime.TryParse(candidate, out dt))
                 {
                     // If year missing, assume current or next year
                     if (dt.Year == 1)
@@ -74,22 +70,10 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                         if (dt < DateTime.UtcNow.Date)
                             dt = dt.AddYears(1);
                     }
-                    parsedDates.Add(dt);
-                }
-                else if (DateTime.TryParse(candidate, out dt))
-                {
-                    // If year missing in TryParse
-                    if (dt.Year == 1)
-                    {
-                        dt = new DateTime(currentYear, dt.Month, dt.Day);
-                        if (dt < DateTime.UtcNow.Date)
-                            dt = dt.AddYears(1);
-                    }
-                    parsedDates.Add(dt);
+                    parsedDates.Add(dt.Date);
                 }
             }
 
-            // If no matches found, try whole string
             if (!parsedDates.Any() && DateTime.TryParse(input, out DateTime singleParsed))
             {
                 if (singleParsed.Year == 1)
@@ -98,26 +82,26 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                     if (singleParsed < DateTime.UtcNow.Date)
                         singleParsed = singleParsed.AddYears(1);
                 }
-                parsedDates.Add(singleParsed);
+                parsedDates.Add(singleParsed.Date);
             }
 
             if (!parsedDates.Any())
             {
                 _logger.LogWarning("ResolveNaturalLanguageDate: Unable to parse date(s) from input '{Input}'", input);
-                return await Task.FromResult(CreateError(call.Id, $"Could not resolve date(s) from input: '{input}'"));
+                return CreateError(call.Id, $"Could not resolve date(s) from input: '{input}'");
             }
 
             // Sort dates so start <= end
             parsedDates = parsedDates.OrderBy(d => d).ToList();
             DateTime startDate = parsedDates.First();
             DateTime endDate = parsedDates.Last();
-            var resolveResult = await _entityResolver.ResolveEntitiesAsync(input);
+
             var result = new
             {
                 success = true,
                 input,
-                startDate = resolveResult.DateRange.StartDate.ToString("yyyy-MM-dd"),
-                endDate = resolveResult.DateRange.EndDate.ToString("yyyy-MM-dd")
+                startDate = startDate.ToString("yyyy-MM-dd"),
+                endDate = endDate.ToString("yyyy-MM-dd")
             };
 
             _logger.LogInformation("ResolveNaturalLanguageDate: Resolved range '{Start}' to '{End}'", result.startDate, result.endDate);

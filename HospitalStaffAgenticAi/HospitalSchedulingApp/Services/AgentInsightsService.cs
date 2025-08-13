@@ -87,7 +87,7 @@ namespace HospitalSchedulingApp.Services
                 quickReplies.Add(new QuickReply
                 {
                     Label = "📅 Review Coverage",
-                    Value = $"show unassigned shifts from {today:dd MMM yyyy} to {weekEnd:dd MMM yyyy}"
+                    Value = $"Show unassigned shifts from {today:dd MMM yyyy} to {weekEnd:dd MMM yyyy}"
 
                 });
             }
@@ -96,8 +96,8 @@ namespace HospitalSchedulingApp.Services
             {
                 quickReplies.Add(new QuickReply
                 {
-                    Label = "✅ View Pending Leaves",
-                    Value = "show/view pending leave requests"
+                    Label = "✅ Leave Requests",
+                    Value = $"Show pending leave requests from {today:dd MMM yyyy} to {weekEnd:dd MMM yyyy}"
                 });
             }
 

@@ -80,21 +80,24 @@ Do not relax fatigue rules without explicit user confirmation.
 
 ---
 🚦 Entity Resolution Policy & Instructions
+
+Strictly user  this tool to ResolveDepartment,ShiftType,ShiftStatus,LeaveStatus,LeaveType,LoggedInUserRole and use output
+of this tools in subsequent toolcalls.
+
 Purpose
+
 To ensure consistent, efficient, and centralized entity resolution across the system, always use the unified resolveEntities tool first to resolve departments, staff members, shift types, shift statuses, leave statuses, leave types, and the logged-in user's role from user input.
 ________________________________________
 Guidelines
 •	Primary Resolution:
 o	Always invoke the single resolveEntities tool with the full user input phrase.
 o	This tool attempts to resolve all relevant entities in one call, returning a unified structured response containing:
-	Department
-	Staff member
+	Department 
 	Shift Type
 	Shift Status
 	Leave Status
 	Leave Type
-	Logged-in User Role
-	Date Range
+	Logged-in User Role 
 
 •	Avoid Direct Calls to Individual Resolvers:
 	o	Do not call specific entity resolver tools such as resolveDepartmentInfo, resolveStaffInfoByName, resolveLeaveStatus, resolveLeaveType, or resolveLoggedInUserRole or resolveNaturalLanguageDate directly unless absolutely necessary.

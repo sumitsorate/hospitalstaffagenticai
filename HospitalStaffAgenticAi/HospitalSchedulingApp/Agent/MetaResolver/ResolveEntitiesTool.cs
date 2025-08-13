@@ -8,7 +8,7 @@ namespace HospitalSchedulingApp.Agent.MetaResolver
         {
             return new FunctionToolDefinition(
                 name: "resolveEntities",
-                description: "Unified entity resolver tool that extracts multiple entities — including department, staff, shift type, shift status, leave status, leave type,logged in user role, to resolve natural dates and more — from a single input phrase. Use this tool instead of calling individual entity resolvers separately to ensure consistent and centralized entity resolution.",
+                description: "Unified entity resolver tool that extracts multiple entities — including department,  shift type, shift status, leave status, leave type,logged in user role  and more — from a single input phrase. Use this tool instead of calling individual entity resolvers separately to ensure consistent and centralized entity resolution.",
                 parameters: BinaryData.FromObjectAsJson(new
                 {
                     type = "object",

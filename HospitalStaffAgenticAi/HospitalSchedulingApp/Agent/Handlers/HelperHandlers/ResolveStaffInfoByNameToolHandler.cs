@@ -1,20 +1,20 @@
 ﻿using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.MetaResolver;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
+using HospitalSchedulingApp.Services.Interfaces; // Assuming your FetchActiveStaffByNamePatternAsync is in a service
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
 {
     public class ResolveStaffInfoByNameToolHandler : IToolHandler
     {
-        private readonly IEntityResolver _entityResolver;
+        private readonly IStaffService _staffService;
         private readonly ILogger<ResolveStaffInfoByNameToolHandler> _logger;
 
         public ResolveStaffInfoByNameToolHandler(
-            IEntityResolver entityResolver,
+            IStaffService staffService,
             ILogger<ResolveStaffInfoByNameToolHandler> logger)
         {
-            _entityResolver = entityResolver;
+            _staffService = staffService;
             _logger = logger;
         }
 
@@ -38,9 +38,9 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                 return CreateError(call.Id, "Staff name must be at least 2 characters long.");
             }
 
-            var resolved = await _entityResolver.ResolveEntitiesAsync(inputName);
+            var matches = await _staffService.FetchActiveStaffByNamePatternAsync(inputName);
 
-            if (resolved.Staff == null)
+            if (!matches.Any())
             {
                 _logger.LogInformation("resolveStaffInfoByName: No staff found for '{Name}'", inputName);
                 return CreateError(call.Id, $"No staff found matching: {inputName}");
@@ -49,19 +49,10 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
             var result = new
             {
                 success = true,
-                matches = new[]
-                {
-                    new
-                    {
-                        staffId = resolved.Staff.StaffId,
-                        staffName = resolved.Staff.StaffName,
-                        roleId = resolved.Staff.RoleId,                     
-                        departmentId = resolved.Staff.StaffDepartmentId                       
-                    }
-                }
-            };
+                matches = matches,
+                            };
 
-            _logger.LogInformation("resolveStaffInfoByName: Found 1 match for '{Input}'", inputName);
+            _logger.LogInformation("resolveStaffInfoByName: Found {Count} match(es) for '{Input}'", matches.Count, inputName);
             return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
         }
 
