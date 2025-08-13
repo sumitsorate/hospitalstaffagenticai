@@ -449,8 +449,7 @@ namespace HospitalSchedulingApp.Agent.Services
                         }
 
                         if (run.Status == RunStatus.Failed && run.LastError != null)
-                        {
-                            await _client.Runs.CancelRunAsync(threadId, run.Id);
+                        { 
                             if (!string.IsNullOrEmpty(run.LastError.Code) &&
                                 run.LastError.Code.Contains("rate_limit_exceeded", StringComparison.OrdinalIgnoreCase))
                             {
@@ -503,6 +502,7 @@ namespace HospitalSchedulingApp.Agent.Services
                     var jitter = Random.Shared.Next(500, 1500);
                     var retryDelay = Math.Min(delayMs * attempt, maxDelayMs) + jitter;
 
+                     retryDelay = 5000;
                     _logger.LogWarning(ex, "Rate limit hit on attempt {Attempt}, retrying after {RetryDelay}ms...", attempt, retryDelay);
                     await Task.Delay(retryDelay);
 
