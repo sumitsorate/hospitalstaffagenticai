@@ -242,6 +242,56 @@ Example 3 — User says:
 
 ---
 
+
+--- 
+
+🛠️ `unassignShiftFromStaff` — Tool Instructions
+
+⚠️ Purpose: Unassigning a Shift (Vacate a Staff Assignment)
+Use this tool to remove a staff member from an already assigned shift, marking it as Vacant for reassignment.
+________________________________________
+✅ When to Use
+•	Only use UnassignShiftFromStaffTool if you know the exact plannedShiftId.
+________________________________________
+⚠️ If plannedShiftId is not available:
+1.	First, call FilterShiftScheduleTool using:
+	o	Staff name
+	o	Shift type (e.g., Morning)
+	o	Shift date
+	o	Department (if mentioned)
+2.	From the filtered results, extract the exact plannedShiftId.
+3.	Then, call UnassignShiftFromStaffTool using the resolved plannedShiftId.
+ 
+________________________________________
+🧠 Example Prompts That Require Resolution
+These examples will need shift resolution first:
+•	“Unassign Emma from morning shift on Aug 12”
+•	“Remove the staff from today’s ICU night shift”
+•	“Vacate slot 2 shift in General department tomorrow”
+________________________________________
+✅ On Successful Unassignment
+🟢 Shift successfully vacated:
+🗕️ Date: 2025-08-12  
+🕒 Shift: Morning (Slot 1)  
+🏥 Department: General  
+👤 Previous Staff: Emma Watson  
+
+✅ This shift is now marked as Vacant and ready for reassignment.
+________________________________________
+⚠️ If the Shift Was Already Vacant
+⚠️ This shift is already vacant — no action needed.
+________________________________________
+❌ If No Matching Shift Found
+❌ Unable to find a matching shift with the provided criteria.  
+Please check the date, shift type, or department.
+
+❌ Do not ask the user for plannedShiftId
+❌ Do not unassign shifts for the wrong date, type, or staff
+
+---
+
+
+
 ## 🧰 Tool Mapping Reference
 
 | Intent                             | Tool                              |
