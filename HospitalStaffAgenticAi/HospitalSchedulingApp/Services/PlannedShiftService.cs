@@ -92,7 +92,7 @@ namespace HospitalSchedulingApp.Services
                 .OrderBy(s => s.ShiftDate)
                 .ToList();
 
-           
+
             // Map to DTOs
             var dtos = finalShiftList.Select(shift =>
             {
@@ -236,7 +236,13 @@ namespace HospitalSchedulingApp.Services
                         ? departments.FirstOrDefault(d => d.DepartmentId == assignedStaff.StaffDepartmentId)?.DepartmentName ?? string.Empty
                         : string.Empty
                 };
-            }).OrderBy(s => s.ShiftDate).ToList();
+            })
+            .GroupBy(s => s.PlannedShiftId)   // 👈 ensure uniqueness
+            .Select(g => g.First())
+            .OrderBy(s => s.ShiftDate)
+            .ThenBy(s => s.ShiftTypeId)
+            .ThenBy(s => s.SlotNumber)
+            .ToList();
 
             return dtos;
         }

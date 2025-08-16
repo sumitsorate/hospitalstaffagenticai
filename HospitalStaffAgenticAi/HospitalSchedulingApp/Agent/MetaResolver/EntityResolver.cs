@@ -121,20 +121,6 @@ namespace HospitalSchedulingApp.Agent.MetaResolver
         private async Task<Department?> ResolveDepartmentAsync(string phrase) =>
             await _departmentService.FetchDepartmentInformationAsync(phrase.ToLower());
 
-        private async Task<Staff?> ResolveStaffAsync(string phrase)
-        {
-            var matches = await _staffService.FetchActiveStaffByNamePatternAsync(phrase.ToLower());
-            return matches?.FirstOrDefault() is var staff && staff != null
-                ? new Staff
-                {
-                    StaffId = staff.StaffId,
-                    StaffDepartmentId = staff.StaffDepartmentId,
-                    IsActive = staff.IsActive,
-                    RoleId = staff.RoleId,
-                    StaffName = staff.StaffName
-                }
-                : null;
-        }
 
         private async Task<ShiftType?> ResolveShiftTypeAsync(string[] tokens)
         {

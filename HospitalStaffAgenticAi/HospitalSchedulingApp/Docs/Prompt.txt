@@ -3,28 +3,27 @@
 Talk to Schedule : 
 
 --> Finding Shift information
-1. Show ICU Morning shifts for this week --
+1. Show ICU Morning shifts for this week -
 
-2. Show ICU Evening shifts for this week --
+2. Show ICU Evening shifts for this week -
 
-3. Show ICU Night shifts for this week --
+3. Show ICU Night shifts for this week -
 
-4. Who worked in ICU yesterday --
+4. Who worked in ICU yesterday -
 
-5. When is Emma working next? --
+5. When is Emma working next? -
 
-6. Show me the shift schedule of Emma --
+6. Show me the shift schedule of Emma -
 
-7. Give me schedule between 1st Aug 2025 and 30 Aug 2025 schedule for Emma. --
- 
+7. Give me schedule between 1st Aug 2025 and 30 Aug 2025 schedule for Emma. -
 
 9. Show me the ICU department's schedule for this week --
 
-10. Show me the schedule for a staff member named Emma --
+10. Show me the schedule for a staff member named Emma -
 
-11. Show me the schedule for a staff member named  Emma from 1st Aug 2025 and 30 Aug 2025 --
+11. Show me the schedule for a staff member named  Emma from 1st Aug 2025 and 30 Aug 2025 -
 
-12. Find the vacant shift from 1st August to 31st Aug 2025 --
+12. Find the vacant shift from 1st August to 31st Aug 2025 -
 
 -- Finding Available Staff
 

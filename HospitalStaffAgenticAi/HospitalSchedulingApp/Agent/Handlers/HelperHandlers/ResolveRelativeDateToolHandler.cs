@@ -57,15 +57,14 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                         break;
 
                     case "this week":
-                        // Week always ends on Saturday
-                        int daysUntilSaturday = ((int)DayOfWeek.Saturday - (int)today.DayOfWeek + 7) % 7;
-                        var endOfWeek = today.AddDays(daysUntilSaturday);
+                        var thisWeekEnd = today.AddDays(6);
                         resultJson = JsonSerializer.Serialize(new
                         {
                             startDate = today.ToString("yyyy-MM-dd"),
-                            endDate = endOfWeek.ToString("yyyy-MM-dd")
+                            endDate = thisWeekEnd.ToString("yyyy-MM-dd")
                         });
                         break;
+
 
 
                     case "day after tomorrow":
@@ -77,13 +76,27 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                         break;
 
                     case "next week":
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddDays(7).ToString("yyyy-MM-dd") });
+                        var nextWeekStart = today.AddDays(7);
+                        var nextWeekEnd = today.AddDays(13);
+                        resultJson = JsonSerializer.Serialize(new
+                        {
+                            startDate = nextWeekStart.ToString("yyyy-MM-dd"),
+                            endDate = nextWeekEnd.ToString("yyyy-MM-dd")
+                        });
                         break;
 
-                    case "last week":
+ 
                     case "previous week":
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddDays(-7).ToString("yyyy-MM-dd") });
+                    case "last week":
+                        var lastWeekStart = today.AddDays(-7);
+                        var lastWeekEnd = today.AddDays(-1);
+                        resultJson = JsonSerializer.Serialize(new
+                        {
+                            startDate = lastWeekStart.ToString("yyyy-MM-dd"),
+                            endDate = lastWeekEnd.ToString("yyyy-MM-dd")
+                        });
                         break;
+
 
                     case "next month":
                         resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddMonths(1).ToString("yyyy-MM-dd") });

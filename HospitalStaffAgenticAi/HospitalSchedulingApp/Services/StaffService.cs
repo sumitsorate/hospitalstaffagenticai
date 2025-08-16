@@ -74,7 +74,8 @@ namespace HospitalSchedulingApp.Services
                     RoleId = s.RoleId,
                     RoleName = roles.FirstOrDefault(r => r.RoleId == s.RoleId)?.RoleName ?? string.Empty,
                     StaffDepartmentId = s.StaffDepartmentId,
-                    StaffDepartmentName = departments.FirstOrDefault(d => d.DepartmentId == s.StaffDepartmentId)?.DepartmentName ?? string.Empty
+                    StaffDepartmentName = departments.FirstOrDefault(d => d.DepartmentId == s.StaffDepartmentId)?.DepartmentName ?? string.Empty,
+                    IsActive = s.IsActive
                 })
                 .ToList();
 
