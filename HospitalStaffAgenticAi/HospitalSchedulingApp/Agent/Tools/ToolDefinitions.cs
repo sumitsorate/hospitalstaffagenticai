@@ -33,6 +33,7 @@ namespace HospitalSchedulingApp.Agent.Tools
             SubmitShiftSwapRequestTool.GetTool(),
             UnassignedShiftFromStaffTool.GetTool(),
             AddNewPlannedShiftTool.GetTool(),
+            FetchShiftSwapRequestTool.GetTool(),
            
              //ResolveRelativeDateTool.GetTool(),
             //DepartmentNameResolverTool.GetTool(),

@@ -14,15 +14,18 @@ namespace HospitalSchedulingApp.Services
         private readonly IPlannedShiftService _plannedShiftService;
         private readonly ILeaveRequestService _leaveRequestService;
         private readonly IUserContextService _userContextService;
+        private readonly IShiftSwapService _shiftSwapService;
 
         public AgentInsightsService(
             IPlannedShiftService plannedShiftService,
             ILeaveRequestService leaveRequestService,
-            IUserContextService userContextService)
+            IUserContextService userContextService,
+            IShiftSwapService shiftSwapService)
         {
             _plannedShiftService = plannedShiftService;
             _leaveRequestService = leaveRequestService;
             _userContextService = userContextService;
+            _shiftSwapService = shiftSwapService;
         }
 
         public async Task<AgentSummaryResponseDto?> GetDailySchedulerSummaryAsync()
@@ -53,14 +56,18 @@ namespace HospitalSchedulingApp.Services
 
             var uncoveredShifts = await _plannedShiftService.FetchFilteredPlannedShiftsAsync(shiftFilter);
             var pendingLeaves = await _leaveRequestService.FetchLeaveRequestsAsync(leaveRequestFilter);
+            var shiftSwapRequest = await _shiftSwapService.FetchShiftSwapRequestsAsync(ShiftSwapStatuses.Pending); 
 
             var summaryParts = new List<string>();
 
             if (uncoveredShifts.Any())
-                summaryParts.Add($"• 🕒 {uncoveredShifts.Count} shift{(uncoveredShifts.Count > 1 ? "s" : "")} are currently unassigned and may affect coverage.");
+                summaryParts.Add($"• 🕒 {uncoveredShifts.Count} shift{(uncoveredShifts.Count > 1 ? "s are" : " is")} currently unassigned and may affect coverage.");
 
             if (pendingLeaves.Any())
-                summaryParts.Add($"• 📥 {pendingLeaves.Count} leave request{(pendingLeaves.Count > 1 ? "s" : "")} are still awaiting your approval.");
+                summaryParts.Add($"• 📥 {pendingLeaves.Count} leave request{(pendingLeaves.Count > 1 ? "s are" : " is")} still awaiting your approval.");
+
+            if (shiftSwapRequest.Any())
+                summaryParts.Add($"• 🔄 {shiftSwapRequest.Count} shift swap request{(shiftSwapRequest.Count > 1 ? "s are" : " is")} pending your review.");
 
             string greeting = GetGreeting();
             string message;
@@ -98,6 +105,15 @@ namespace HospitalSchedulingApp.Services
                 {
                     Label = "✅ Leave Requests",
                     Value = $"Show pending leave requests from {today:dd MMM yyyy} to {weekEnd:dd MMM yyyy}"
+                });
+            }
+
+            if (shiftSwapRequest.Any())
+            {
+                quickReplies.Add(new QuickReply
+                {
+                    Label = "🔄 Shift Swaps",
+                    Value = $"Show pending shift swap requests"
                 });
             }
 

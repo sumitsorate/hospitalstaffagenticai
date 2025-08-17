@@ -128,7 +128,7 @@ namespace HospitalSchedulingApp.Agent
             }
 
             // Create a new agent
-            string systemPromptPath = Path.Combine("SystemPrompt", "SystemPrompt.txt");
+            string systemPromptPath = Path.Combine("SystemPrompt", "SystemPrompt2.txt");
 
             if (!File.Exists(systemPromptPath))
             {

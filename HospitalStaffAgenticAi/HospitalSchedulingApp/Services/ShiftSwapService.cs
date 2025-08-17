@@ -120,5 +120,19 @@ namespace HospitalSchedulingApp.Services
             };
         }
 
+        /// <summary>
+        /// Asynchronously retrieves a list of shift swap requests filtered by the specified status.
+        /// </summary>
+        /// <param name="status">The status of the shift swap requests to retrieve. This parameter determines which requests are included in the result.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains a list of  <see cref="ShiftSwapResponse"/> objects matching the specified status. If no requests match  the status, the list will be empty.</returns>
+        public async Task<List<ShiftSwapRequest>> FetchShiftSwapRequestsAsync(ShiftSwapStatuses status)
+        {
+            // Fetch shift swap requests from the repository
+            var shiftSwapRequests = (await _shiftSwapRepository.GetAllAsync());
+            return shiftSwapRequests
+                .Where(s => s.StatusId == status && s.SourceShiftDate >= DateTime.Now)
+                .OrderByDescending(s => s.RequestedAt)
+                .ToList();
+        }
     }
 }
