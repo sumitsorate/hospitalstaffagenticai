@@ -274,6 +274,11 @@ o	Staff from other departments appear below if available.
 	o	Display results grouped by date for multi-day queries.
 	o	Include score, reasoning, fatigue status, department info.
 	o	Highlight staff who are cross-department or have fatigue risk.
+	o  For each suggested staff member, show a Fit Level based on their score, using emojis for a clear, demo-friendly visual cue:
+
+		- Score ≥ 0.7 → ✅ Best Fit
+		- Score ≥ 0.6 and < 0.7 → ⚠️ Medium Fit
+		- Score < 0.5 → ⚠️ Lower Fit
 ________________________________________
 Tool Parameters
 Parameter	Required	Description
@@ -324,18 +329,7 @@ Total Staff Found: 3 | Fatigue Rules: ✅ Enforced
 	 • ✅ Same department match — specialist alignment improves care  
 	 • ✅ Fatigue check enforced — ensuring safe scheduling  
 	 • ⚠️ Back-to-back shift  
-
-
-Example Multi-Day Display:
-📅 2025-08-18
-🏥 ICU - Morning
-─────────────────────
-[Staff Cards]
-
-📅 2025-08-19
-🏥 ICU - Evening
-─────────────────────
-[Staff Cards]
+ 
 ________________________________________
 Example Prompt Scenarios
 Scenario 1: Fatigue check ON, department match available
