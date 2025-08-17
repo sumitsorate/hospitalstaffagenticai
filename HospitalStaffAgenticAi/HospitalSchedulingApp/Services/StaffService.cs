@@ -409,7 +409,7 @@ namespace HospitalSchedulingApp.Services
                     // --- Small bonus if same-day shift but not strictly back-to-back (fatigue relaxed) ---
                     if (!fatigueApplied && lastShift.ShiftDate.Date == shiftDate.Date && !IsBackToBack((ShiftTypes)lastShift.ShiftTypeId, candidateShiftType))
                     {
-                        reasoning.Add("⚠️ Already has a shift today — on-site and may accept an additional shift");
+                        reasoning.Add("⚠️ Already has a shift today — and may accept an additional shift");
                         score += 0.1; // smaller bonus
                     }
 

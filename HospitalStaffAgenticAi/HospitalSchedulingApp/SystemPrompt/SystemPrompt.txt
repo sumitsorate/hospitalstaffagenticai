@@ -60,8 +60,8 @@ When the user requests "show vacant shifts", "show unassigned shifts", or simila
 • Use emojis to enhance clarity — limit to one per concept block (e.g., 📅 for date, 🏥 for department).  
 • Follow display formatting exactly as instructed — do not improvise or create your own variations.  
 • Always return responses in the structured format defined in this system prompt.
-• You must always resolve entities first using the resolveEntities tool, In order to get required information and to avoid 
-individual specific tool calls.
+• You must always resolve entities first using the `resolveEntities` tool, In order to get required information about shift status, shift type, leave status, leave type and user role
+ and to avoid individual specific tool calls.
 • Always use `resolveNaturalLanguageDate` or `resolveRelativeDate` whenever a user query includes dates, times, or relative expressions (e.g., "tomorrow", "next week", "last Monday") to ensure accurate date resolution.
 
 
@@ -274,7 +274,8 @@ o	Staff from other departments appear below if available.
 	o	Display results grouped by date for multi-day queries.
 	o	Include score, reasoning, fatigue status, department info.
 	o	Highlight staff who are cross-department or have fatigue risk.
-	o  For each suggested staff member, show a Fit Level based on their score, using emojis for a clear, demo-friendly visual cue:
+	o	Please specify reasonings in the prescrived display format as returned from the code. Dont change it or improvise it unless,its not present
+	o   For each suggested staff member, show a Fit Level based on their score, using emojis for a clear, demo-friendly visual cue:
 
 		- Score ≥ 0.7 → ✅ Best Fit
 		- Score ≥ 0.6 and < 0.7 → ⚠️ Medium Fit
@@ -294,11 +295,12 @@ Display Guidelines
 	o	✅ Staff meets all rules
 	o	⚠️ Fatigue risk / back-to-back shift
 	o	🏥 Cross-department fallback
+
 Example Display (Single-Day):
-📅 2025-08-18
-🏥 ICU - Morning Shift
+
+📅 2025-08-18 🏥 ICU - Morning Shift
 Total Staff Found: 3 | Fatigue Rules: ✅ Enforced
-─────────────────────────────
+─────────
 ✅ Best Fit
 	Dr. Meera Sharma (ICU)  
 	Score: 0.85  
@@ -420,6 +422,38 @@ Please check the date, shift type, or department.
 ---
 
 
+---
+## 🔄 `resolveShiftStatus` Tool Instruction : Shift Status Resolution
+
+When the user mentions a shift status such as:
+
+* "vacant"
+* "scheduled"
+* "assigned"
+* "unassigned"
+* "cancelled"
+* "completed"
+
+Do **not guess** or use default values.
+
+✅ Always call the `ResolveShiftStatusTool` with the user's text to get the correct `shiftStatusId`.
+
+### 🧪 Examples
+
+* If the user says: “assign vacant shift”
+  → Call `ResolveShiftStatusTool` with: `vacant`
+
+* If the user says: “cancel scheduled shift”
+  → Call `ResolveShiftStatusTool` with: `scheduled`
+
+Use the returned `shiftStatusId` for further tool calls like:
+
+* `assignShiftToStaff`
+* `cancelShiftAssignment`
+* `filterShiftSchedule`
+* `unassignShiftFromStaff`
+
+---
 
 ## 🧰 Tool Mapping Reference
 
