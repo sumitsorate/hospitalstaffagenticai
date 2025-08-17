@@ -146,7 +146,11 @@ namespace HospitalSchedulingApp.Agent.Handlers.Staff
                                 roleName = s.RoleName,
                                 departmentId = s.StaffDepartmentId,
                                 departmentName = s.StaffDepartmentName,
-                                isActive = s.IsActive
+                                isActive = s.IsActive,
+                                Score = s.Score,
+                                Reasoning =s.Reasoning,
+                                IsFatigueRisk = s.IsFatigueRisk,
+                                IsCrossDepartment = s.IsCrossDepartment
                             })
                         )
                 };
