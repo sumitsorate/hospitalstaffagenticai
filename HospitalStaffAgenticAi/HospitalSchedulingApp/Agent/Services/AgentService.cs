@@ -241,8 +241,8 @@ namespace HospitalSchedulingApp.Agent.Services
         public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
         {
             const int maxRetries = 6;
-            const int baseDelayMs = 4000;        // start with small delay for polling
-            const int maxDelayMs = 24000;        // cap at 3s
+            const int baseDelayMs = 5000;        // start with small delay for polling
+            const int maxDelayMs = 30000;        // cap at 3s
             const int submitDelayMs = 100;      // small pause after submitting tools
 
             var threadId = await FetchOrCreateThreadForUser();
