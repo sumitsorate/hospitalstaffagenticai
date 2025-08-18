@@ -240,10 +240,11 @@ namespace HospitalSchedulingApp.Agent.Services
 
         public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
         {
-            const int maxRetries = 6;
-            const int baseDelayMs = 4000;        // start with small delay for polling
-            const int maxDelayMs = 24000;        // cap at 3s
-            const int submitDelayMs = 100;      // small pause after submitting tools
+            const int maxRetries = 6; 
+            int delayMs = 4000; // Initial delay
+            const int maxDelayMs = 24000; 
+            const int submitDelayMs = 100; 
+            const int fastPollDelayMs = 1000; // Poll more frequently when close to completion
 
             var threadId = await FetchOrCreateThreadForUser();
 
@@ -266,7 +267,6 @@ namespace HospitalSchedulingApp.Agent.Services
                 attempt++;
                 try
                 {
-                    int delayMs = baseDelayMs;
                     bool continuePolling;
 
                     do
@@ -278,8 +278,14 @@ namespace HospitalSchedulingApp.Agent.Services
                             "GetRunAsync",
                             $"runId={run.Id}");
 
-                        // Increase polling delay exponentially
-                        delayMs = Math.Min(delayMs * 2, maxDelayMs);
+                        if (run.Status == RunStatus.RequiresAction)
+                        {
+                            delayMs = fastPollDelayMs; // Poll faster when tools are being called
+                        }
+                        else
+                        {
+                            delayMs = Math.Min(delayMs * 2, maxDelayMs); // Exponential backoff
+                        }
 
                         if (run.Status == RunStatus.RequiresAction && run.RequiredAction is SubmitToolOutputsAction action)
                         {
@@ -299,7 +305,7 @@ namespace HospitalSchedulingApp.Agent.Services
                                     "SubmitToolOutputsToRunAsync",
                                     $"runId={run.Id}, toolCalls={toolOutputs.Count}");
 
-                               // await Task.Delay(submitDelayMs); // short pause to avoid burst
+                                // await Task.Delay(submitDelayMs); // short pause to avoid burst
                             }
                         }
 
@@ -352,7 +358,7 @@ namespace HospitalSchedulingApp.Agent.Services
                     }
 
                     // Exponential retry with jitter
-                    var retryDelay = Math.Min(baseDelayMs * (int)Math.Pow(2, attempt), maxDelayMs) + Random.Shared.Next(200, 800);
+                    var retryDelay = Math.Min(4000 * (int)Math.Pow(2, attempt), maxDelayMs) + Random.Shared.Next(200, 800);
                     _logger.LogWarning(ex, "Rate limit hit on attempt {Attempt}, retrying after {RetryDelay}ms...", attempt, retryDelay);
 
                     retryDelay = 5000;

@@ -140,6 +140,7 @@ builder.Services.AddScoped<IToolHandler, SubmitShiftSwapRequestToolHandler>();
 builder.Services.AddScoped<IToolHandler, UnassignShiftFromStaffToolHandler>();
 builder.Services.AddScoped<IToolHandler, AddNewPlannedShiftToolHandler>();
 builder.Services.AddScoped<IToolHandler, ResolveEntitiesToolHandler>();
+builder.Services.AddScoped<IToolHandler, FetchShiftSwapRequestToolHandler>();
 
 builder.Services.AddScoped<IEntityResolver, EntityResolver>();
 //builder.Services.AddScoped<ResolveDepartmentInfoToolHandler>();
