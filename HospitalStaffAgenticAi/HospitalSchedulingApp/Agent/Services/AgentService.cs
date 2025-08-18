@@ -245,6 +245,10 @@ namespace HospitalSchedulingApp.Agent.Services
             const int maxDelayMs = 30000;        // cap at 3s
             const int submitDelayMs = 100;      // small pause after submitting tools
 
+            // sequence-based backoff: 500ms → 1000ms → 2000ms → 2000ms → ...
+            var pollingDelays = new[] { 1000, 2000, 3000,4000,5000};
+            int pollIndex = 0;
+
             var threadId = await FetchOrCreateThreadForUser();
 
             _logger.LogInformation("Sending user message of length {Length}", message.Length);
@@ -261,16 +265,22 @@ namespace HospitalSchedulingApp.Agent.Services
                 "CreateRunAsync",
                 $"agentId={_agent.Id}");
 
+
             while (attempt < maxRetries)
             {
                 attempt++;
                 try
                 {
-                    int delayMs = baseDelayMs;
+                    //int delayMs = baseDelayMs;
                     bool continuePolling;
 
                     do
                     {
+                        var delayMs = pollIndex < pollingDelays.Length
+                            ? pollingDelays[pollIndex]
+                            : pollingDelays.Last(); // cap at 2s
+
+                        pollIndex++;
                         await Task.Delay(delayMs);
 
                         run = await CallAzureApiAsync(

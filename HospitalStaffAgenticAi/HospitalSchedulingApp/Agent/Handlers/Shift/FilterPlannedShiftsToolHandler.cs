@@ -29,16 +29,48 @@ namespace HospitalSchedulingApp.Agent.Handlers.Shift
         {
             try
             {
+                //var filter = new ShiftFilterDto
+                //{
+                //    StaffId = root.TryGetProperty("staffId", out var staffIdProp) && staffIdProp.TryGetInt32(out var staffId) ? staffId : null,
+                //    DepartmentId = root.TryGetProperty("departmentId", out var deptIdProp) && deptIdProp.TryGetInt32(out var deptId) ? deptId : null,
+                //    ShiftTypeId = root.TryGetProperty("shiftTypeId", out var typeProp) && typeProp.TryGetInt32(out var shiftTypeId) ? shiftTypeId : null,
+                //    ShiftStatusId = root.TryGetProperty("shiftStatusId", out var statusProp) && statusProp.TryGetInt32(out var shiftStatusId) ? shiftStatusId : null,
+                //    FromDate = root.TryGetProperty("fromDate", out var fromProp) && DateTime.TryParse(fromProp.GetString(), out var fromDate) ? fromDate : null,
+                //    ToDate = root.TryGetProperty("toDate", out var toProp) && DateTime.TryParse(toProp.GetString(), out var toDate) ? toDate : null,
+                //    SlotNumber = root.TryGetProperty("slotNumber", out var slotNumberProp) && slotNumberProp.TryGetInt32(out var slotNumber) ? slotNumber : null,
+                //};
+
                 var filter = new ShiftFilterDto
                 {
-                    StaffId = root.TryGetProperty("staffId", out var staffIdProp) && staffIdProp.TryGetInt32(out var staffId) ? staffId : null,
-                    DepartmentId = root.TryGetProperty("departmentId", out var deptIdProp) && deptIdProp.TryGetInt32(out var deptId) ? deptId : null,
-                    ShiftTypeId = root.TryGetProperty("shiftTypeId", out var typeProp) && typeProp.TryGetInt32(out var shiftTypeId) ? shiftTypeId : null,
-                    ShiftStatusId = root.TryGetProperty("shiftStatusId", out var statusProp) && statusProp.TryGetInt32(out var shiftStatusId) ? shiftStatusId : null,
-                    FromDate = root.TryGetProperty("fromDate", out var fromProp) && DateTime.TryParse(fromProp.GetString(), out var fromDate) ? fromDate : null,
-                    ToDate = root.TryGetProperty("toDate", out var toProp) && DateTime.TryParse(toProp.GetString(), out var toDate) ? toDate : null,
-                    SlotNumber = root.TryGetProperty("slotNumber", out var slotNumberProp) && slotNumberProp.TryGetInt32(out var slotNumber) ? slotNumber : null,
+                    StaffId = root.TryGetProperty("staffId", out var staffIdProp) &&
+              staffIdProp.ValueKind == JsonValueKind.Number &&
+              staffIdProp.TryGetInt32(out var staffId) ? staffId : null,
+
+                    DepartmentId = root.TryGetProperty("departmentId", out var deptIdProp) &&
+                   deptIdProp.ValueKind == JsonValueKind.Number &&
+                   deptIdProp.TryGetInt32(out var deptId) ? deptId : null,
+
+                    ShiftTypeId = root.TryGetProperty("shiftTypeId", out var typeProp) &&
+                  typeProp.ValueKind == JsonValueKind.Number &&
+                  typeProp.TryGetInt32(out var shiftTypeId) ? shiftTypeId : null,
+
+                    ShiftStatusId = root.TryGetProperty("shiftStatusId", out var statusProp) &&
+                    statusProp.ValueKind == JsonValueKind.Number &&
+                    statusProp.TryGetInt32(out var shiftStatusId) ? shiftStatusId : null,
+
+                    FromDate = root.TryGetProperty("fromDate", out var fromProp) &&
+               fromProp.ValueKind == JsonValueKind.String &&
+               DateTime.TryParse(fromProp.GetString(), out var fromDate) ? fromDate : null,
+
+                    ToDate = root.TryGetProperty("toDate", out var toProp) &&
+             toProp.ValueKind == JsonValueKind.String &&
+             DateTime.TryParse(toProp.GetString(), out var toDate) ? toDate : null,
+
+                    SlotNumber = root.TryGetProperty("slotNumber", out var slotNumberProp) &&
+                 slotNumberProp.ValueKind == JsonValueKind.Number &&
+                 slotNumberProp.TryGetInt32(out var slotNumber) ? slotNumber : null,
                 };
+
 
                 var isEmployee = _userContextService.IsEmployee();
                 var loggedInUserStaffID = _userContextService.GetStaffId();
