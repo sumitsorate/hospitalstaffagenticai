@@ -29,6 +29,7 @@ export class ShiftCalendarComponent implements OnInit {
       center: 'title',
       right: 'dayGridMonth,timeGridWeek,listWeek'
     },
+    eventOrder: 'extendedProps.shiftOrder',
     events: [], // Initially empty
     dateClick: this.handleDateClick.bind(this),
     eventClick: this.handleEventClick.bind(this),
@@ -109,10 +110,27 @@ eventContent: (arg) => {
         const events = this.transformShiftsToEvents(shifts);
         console.log('Fetched shifts:', events);
 
+        // Sort events by start date first, then by shiftType: morning, evening, night
+        const shiftOrder: { [key: string]: number } = { morning: 1, evening: 2, night: 3 };
+        const sortedEvents = events.slice().sort((a, b) => {
+          const aDate = new Date(a.start).getTime();
+          const bDate = new Date(b.start).getTime();
+          if (aDate !== bDate) {
+            return aDate - bDate;
+          }
+          const aType: string = (a.extendedProps.shiftType || '').toLowerCase();
+          const bType: string = (b.extendedProps.shiftType || '').toLowerCase();
+          return (shiftOrder[aType as keyof typeof shiftOrder] || 99) - (shiftOrder[bType as keyof typeof shiftOrder] || 99);
+        });
+ 
         this.calendarOptions = {
           ...this.calendarOptions,
-          events: events
+          events: sortedEvents
         };
+        // this.calendarOptions = {
+        //   ...this.calendarOptions,
+        //   events: events
+        // };
         this.cdRef.detectChanges();
       },
       error: err => {
@@ -141,6 +159,7 @@ eventContent: (arg) => {
   }
 
   transformShiftsToEvents(shifts: PlannedShiftDto[]): any[] {
+    const shiftOrder: { [key: string]: number } = { morning: 1, evening: 2, night: 3 };
     return shifts.map(shift => {
       const isVacant = shift.shiftStatusId === 5;
       if (isVacant) {
@@ -158,7 +177,8 @@ eventContent: (arg) => {
           staffName: shift.assignedStaffFullName,
           departmentName: shift.shiftDeparmentName,
           shiftType: shift.shiftTypeName,
-          isVacant: isVacant
+          isVacant: isVacant,
+          shiftOrder: shiftOrder[(shift.shiftTypeName || '').toLowerCase()] || 99
         },
         backgroundColor: isVacant
           ? '#fff3cd'

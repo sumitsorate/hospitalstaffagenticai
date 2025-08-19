@@ -1,6 +1,15 @@
-﻿
-Step 1 :Initial Set up
- 
+
+
+-- Demo Steps :
+-- Clean Data
+	--Delete From PlannedShift
+	--Delete From LeaveRequests
+	--Delete From NurseAvailability
+
+
+-- Insert Mock Data
+
+
  
 -- Night Shift ICU- Olivia(ICU)
 INSERT INTO PlannedShift
@@ -110,44 +119,6 @@ INSERT INTO PlannedShift
 (shift_date,shift_type_id,department_id,slot_number,shift_status_id,assigned_staff_id)
 VALUES('2025-08-26', 3,2,3,1,3)
 
-=====================================================================================================================
-11th Aug
-- Lets say There is shortage in ICU Deparment and we want to add one more nurse and shift
- : Create a vacant Morning shift in ICU for 11-Aug-2025.
- -> He will suggest staff
- -> Ask him to Autoassign - Currently he assigned it to Elena
-
-- Lets say There is shortage in ICU Deparment and we want to add one more nurse and shift
- : Create a vacant Morning shift in ICU for 11-Aug-2025.
- : Suggested Staff is Ava
- -> Ask him to assign it to Ava
-
-- - Lets say There is shortage in ICU Deparment and we want to add one more nurse and shift
- : Create a vacant Morning shift in ICU for 11-Aug-2025.
- - He will find nurses from other department 
- ->  Ask him to assign or you can assign it to someone else
-
-====================================================================
-Login with Emma and  :Add a sick leave for Me on 12th Aug 2025
 
 
-
-=======================
-  
-
-
-- Show All the Planned shift and there is no message in the chat interface
-1. Move shift to 11,12 and 13 th August or the the week when u are going to give demo
-Update PlannedShift Set shift_date  = '2025-08-11'
-where shift_date  = '2025-08-05'
-Update PlannedShift Set shift_date  = '2025-08-12'
-where shift_date  = '2025-08-06'
-Update PlannedShift Set shift_date  = '2025-08-13'
-where shift_date  = '2025-08-07'
-
--- Show who is schedule
---  can we add a shift from the 
-
-
- // Check the uncovered shifts scenario
-
+-- Unassigned on of the Shift
