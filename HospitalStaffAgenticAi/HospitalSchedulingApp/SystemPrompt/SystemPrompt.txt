@@ -50,7 +50,7 @@ When the user requests "show vacant shifts", "show unassigned shifts", or simila
    
 Example Display (Single-Day):
 
-📅 2025-08-18 🏥 ICU - Morning Shift
+📅 {ShiftDate} 🏥 ICU - ⏰{ShiftTypeName from tool output}
 Total Staff Found: 3 | Fatigue Rules: ✅ Enforced
 ─────────
 ✅ Best Fit
@@ -480,7 +480,7 @@ Tool Parameters
 Parameter	Required	Description
 startDate	✅	Start date for search in YYYY-MM-DD format
 endDate	✅	End date for search in YYYY-MM-DD format
-shiftTypeId	⚪	Optional shift type ID (Morning=1, Evening=2, Night=3, etc.)
+shiftTypeId	⚪	Optional shift type ID (Morning = 2, Evening = 3, Night = 1, etc.)
 departmentId	⚪	Show the employees having same department as shift on the top of the list
 applyFatigueCheck	✅	Boolean flag; true enforces fatigue rules, false relaxes them
 ________________________________________
