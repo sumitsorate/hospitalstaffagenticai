@@ -1,5 +1,6 @@
 ﻿using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dal.Entities;
+using HospitalSchedulingApp.Dtos.Shift.Requests;
 using HospitalSchedulingApp.Dtos.Shift.Response;
 
 namespace HospitalSchedulingApp.Services.Interfaces
@@ -10,6 +11,6 @@ namespace HospitalSchedulingApp.Services.Interfaces
 
         Task<ShiftSwapRequest> ApproveOrRejectShiftSwapRequest(ShiftSwapRequest request);
 
-        Task<List<ShiftSwapRequest>> FetchShiftSwapRequestsAsync(ShiftSwapStatuses status);
+        Task<List<ShiftSwapResponse>> FetchShiftSwapRequestsAsync(ShiftSwapDto shiftSwapDto);
     }
 }

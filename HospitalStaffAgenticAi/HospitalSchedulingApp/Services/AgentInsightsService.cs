@@ -54,9 +54,15 @@ namespace HospitalSchedulingApp.Services
                 LeaveStatusId = LeaveRequestStatuses.Pending
             };
 
+            var shiftSwapFilter = new ShiftSwapDto
+            {
+                StatusId = ShiftSwapStatuses.Pending,
+                fromDate = today,
+            };
+
             var uncoveredShifts = await _plannedShiftService.FetchFilteredPlannedShiftsAsync(shiftFilter);
             var pendingLeaves = await _leaveRequestService.FetchLeaveRequestsAsync(leaveRequestFilter);
-            var shiftSwapRequest = await _shiftSwapService.FetchShiftSwapRequestsAsync(ShiftSwapStatuses.Pending); 
+            var shiftSwapRequest = await _shiftSwapService.FetchShiftSwapRequestsAsync(shiftSwapFilter); 
 
             var summaryParts = new List<string>();
 
@@ -113,7 +119,7 @@ namespace HospitalSchedulingApp.Services
                 quickReplies.Add(new QuickReply
                 {
                     Label = "🔄 Shift Swaps",
-                    Value = $"Show pending shift swap requests"
+                    Value = $"Show pending shift swap requests from {today:dd MMM yyyy}"
                 });
             }
 

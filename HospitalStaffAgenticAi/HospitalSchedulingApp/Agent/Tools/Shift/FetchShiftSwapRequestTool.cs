@@ -9,8 +9,7 @@ namespace HospitalSchedulingApp.Agent.Tools.Shift
         {
             return new FunctionToolDefinition(
                 name: "fetchShiftSwapRequest",
-                description: "Use this tool to get the list of shift swap requests",
-                parameters: BinaryData.FromObjectAsJson(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                description: "Use this tool to get the list of shift swap requests"
             );
         }
     }

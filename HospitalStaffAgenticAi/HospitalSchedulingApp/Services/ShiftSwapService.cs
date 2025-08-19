@@ -1,6 +1,7 @@
 ﻿using HospitalSchedulingApp.Common.Enums;
 using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dal.Repositories;
+using HospitalSchedulingApp.Dtos.Shift.Requests;
 using HospitalSchedulingApp.Dtos.Shift.Response;
 using HospitalSchedulingApp.Services.Interfaces;
 
@@ -12,16 +13,20 @@ namespace HospitalSchedulingApp.Services
         private readonly IRepository<PlannedShift> _plannedShiftRepo;
         private readonly IRepository<Staff> _staffRepository;
         private readonly IRepository<ShiftType> _shiftTypeRepository;
+        private readonly IRepository<Department> _departmentRepository;
+
         public ShiftSwapService(IRepository<ShiftSwapRequest> shiftSwapRepository,
             IRepository<Staff> staffRepository,
             IRepository<ShiftType> shiftTypeRepository,
-            IRepository<PlannedShift> plannedShiftRepo)
+            IRepository<PlannedShift> plannedShiftRepo,
+            IRepository<Department> departmentRepository)
 
         {
             _shiftSwapRepository = shiftSwapRepository;
             _staffRepository = staffRepository;
             _shiftTypeRepository = shiftTypeRepository;
             _plannedShiftRepo = plannedShiftRepo;
+            _departmentRepository = departmentRepository;
         }
 
 
@@ -125,14 +130,81 @@ namespace HospitalSchedulingApp.Services
         /// </summary>
         /// <param name="status">The status of the shift swap requests to retrieve. This parameter determines which requests are included in the result.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains a list of  <see cref="ShiftSwapResponse"/> objects matching the specified status. If no requests match  the status, the list will be empty.</returns>
-        public async Task<List<ShiftSwapRequest>> FetchShiftSwapRequestsAsync(ShiftSwapStatuses status)
+        public async Task<List<ShiftSwapResponse>> FetchShiftSwapRequestsAsync(ShiftSwapDto shiftSwapDto)
         {
             // Fetch shift swap requests from the repository
-            var shiftSwapRequests = (await _shiftSwapRepository.GetAllAsync());
-            return shiftSwapRequests
-                .Where(s => s.StatusId == status && s.SourceShiftDate >= DateTime.Now)
-                .OrderByDescending(s => s.RequestedAt)
-                .ToList();
+            // Fetch shift swap requests from the repository
+            var shiftSwapRequests = (await _shiftSwapRepository.GetAllAsync())
+                .Where(x => (shiftSwapDto.StatusId == null || x.StatusId == (ShiftSwapStatuses)shiftSwapDto.StatusId)
+                     && (shiftSwapDto.requesterStaffId == null || shiftSwapDto.requesterStaffId == x.RequestingStaffId)
+                     && (shiftSwapDto.targetStaffId == null || shiftSwapDto.targetStaffId == x.TargetStaffId)
+                     && (shiftSwapDto.requesterShiftTypeId == null || shiftSwapDto.requesterShiftTypeId == x.SourceShiftTypeId)
+                     && (shiftSwapDto.targetShiftTypeId == null || shiftSwapDto.targetShiftTypeId == x.TargetShiftTypeId)
+                     && (shiftSwapDto.fromDate == null || x.SourceShiftDate >= shiftSwapDto.fromDate)
+                     && (shiftSwapDto.toDate == null || x.TargetShiftDate <= shiftSwapDto.toDate)
+                )
+                .ToList(); // Materialize once for performance
+
+            var staffRepo = (await _staffRepository.GetAllAsync()).ToDictionary(s => s.StaffId);
+            var plannedShifts = (await _plannedShiftRepo.GetAllAsync()).ToList();
+            // Replace the following lines inside FetchShiftSwapRequestsAsync:
+
+            var plannedShiftLookup = plannedShifts
+                .GroupBy(ps => new { ps.ShiftDate, ShiftTypeId = (int)ps.ShiftTypeId, ps.AssignedStaffId })
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.First()
+                );
+            var departments = (await _departmentRepository.GetAllAsync()).ToDictionary(d => d.DepartmentId);
+            var shiftTypes = (await _shiftTypeRepository.GetAllAsync()).ToDictionary(st => st.ShiftTypeId);
+
+            var shiftSwapResponses = new List<ShiftSwapResponse>(shiftSwapRequests.Count);
+
+            foreach (var shiftSwap in shiftSwapRequests)
+            {
+                staffRepo.TryGetValue(shiftSwap.RequestingStaffId, out var requestingStaff);
+                staffRepo.TryGetValue(shiftSwap.TargetStaffId, out var targetStaff);
+
+                shiftTypes.TryGetValue(shiftSwap.SourceShiftTypeId, out var sourceShiftType);
+                shiftTypes.TryGetValue(shiftSwap.TargetShiftTypeId, out var targetShiftType);
+
+                // When creating sourceKey and targetKey, ensure AssignedStaffId is nullable (int?):
+                var sourceKey = new { ShiftDate = shiftSwap.SourceShiftDate, ShiftTypeId = shiftSwap.SourceShiftTypeId, AssignedStaffId = (int?)shiftSwap.RequestingStaffId };
+                var targetKey = new { ShiftDate = shiftSwap.TargetShiftDate, ShiftTypeId = shiftSwap.TargetShiftTypeId, AssignedStaffId = (int?)shiftSwap.TargetStaffId };
+
+                plannedShiftLookup.TryGetValue(sourceKey, out var sourcePlannedShift);
+                plannedShiftLookup.TryGetValue(targetKey, out var targetPlannedShift);
+
+                var sourceDeptId = sourcePlannedShift?.DepartmentId ?? 0;
+                var targetDeptId = targetPlannedShift?.DepartmentId ?? 0;
+
+                departments.TryGetValue(sourceDeptId, out var sourceDept);
+                departments.TryGetValue(targetDeptId, out var targetDept);
+
+                shiftSwapResponses.Add(new ShiftSwapResponse
+                {
+                    RequestingStaffId = shiftSwap.RequestingStaffId,
+                    RequestingStaffName = requestingStaff?.StaffName ?? "Unknown",
+                    TargetStaffId = shiftSwap.TargetStaffId,
+                    TargetStaffName = targetStaff?.StaffName ?? "Unknown",
+                    SourceShiftDate = shiftSwap.SourceShiftDate,
+                    SourceShiftTypeId = shiftSwap.SourceShiftTypeId,
+                    SourceShiftTypeName = sourceShiftType?.ShiftTypeName ?? "N/A",
+                    TargetShiftDate = shiftSwap.TargetShiftDate,
+                    TargetShiftTypeId = shiftSwap.TargetShiftTypeId,
+                    TargetShiftTypeName = targetShiftType?.ShiftTypeName ?? "N/A",
+                    StatusId = (int)shiftSwap.StatusId,
+                    SourceDepartmentId = sourceDeptId,
+                    SourceDepartmentName = sourceDept?.DepartmentName ?? "N/A",
+                    TargetDepartmentId = targetDeptId,
+                    TargetDepartmentName = targetDept?.DepartmentName ?? "N/A",
+                    ShiftSwapStatus = ((ShiftSwapStatuses)shiftSwap.StatusId).ToString(),
+                    RequestedAt = shiftSwap.RequestedAt
+                });
+            }           
+
+
+            return shiftSwapResponses;
         }
     }
 }
