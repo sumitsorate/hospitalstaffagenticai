@@ -2,9 +2,10 @@
 
 -- Demo Steps :
 -- Clean Data
-	--Delete From PlannedShift
-	--Delete From LeaveRequests
-	--Delete From NurseAvailability
+	Delete From PlannedShift
+	Delete From LeaveRequests
+	Delete From NurseAvailability
+	Delete From AgentConversations
 
 
 -- Insert Mock Data
@@ -121,4 +122,93 @@ VALUES('2025-08-26', 3,2,3,1,3)
 
 
 
--- Unassigned on of the Shift
+-- Unassigned on of the Shift - Workflow
+Select * From PlannedShift Where shift_date='2025-08-25'
+
+Update PlannedShift Set assigned_staff_id=null , shift_status_id=5
+Where planned_shift_id=183
+
+ -- Step 1: Run the uncovered shift flow
+ -- Assign it to Ava
+ -- Step 2 : Add a leave request for Liam : Add a sick leave for Liam on 25th Aug
+ -- Assign it to noah--if in output
+ -- Step 3:  How system behaves when staff is not available
+ --  Make the same 25th aug ICU night shift as Vacant
+ --  Add unavailability for staff on 25th day 
+ --  Run the chat iteratively
+
+
+-- add a  unavailability - 
+Select * From Staff
+
+-- Fatigue Rules Check
+
+-- Elena not available : morning, evening, night
+Insert into NurseAvailability values
+(1,'2025-08-25',0,1,'')
+Insert into NurseAvailability values
+(1,'2025-08-25',0,2,'')
+Insert into NurseAvailability values
+(1,'2025-08-25',0,3,'')
+
+-- Olivia not available : morning, evening, night
+Insert into NurseAvailability values
+(2,'2025-08-25',0,1,'')
+Insert into NurseAvailability values
+(2,'2025-08-25',0,2,'')
+Insert into NurseAvailability values
+(2,'2025-08-25',0,3,'')
+
+-- Liam not available : morning, evening, night
+Insert into NurseAvailability values
+(3,'2025-08-25',0,1,'')
+Insert into NurseAvailability values
+(3,'2025-08-25',0,2,'')
+Insert into NurseAvailability values
+(3,'2025-08-25',0,3,'')
+
+-- Emma not available : morning, evening, night
+Insert into NurseAvailability values
+(4,'2025-08-25',0,1,'')
+Insert into NurseAvailability values
+(4,'2025-08-25',0,2,'')
+Insert into NurseAvailability values
+(4,'2025-08-25',0,3,'')
+
+-- Noah not available : morning, evening, night
+Insert into NurseAvailability values
+(5,'2025-08-25',0,1,'')
+Insert into NurseAvailability values
+(5,'2025-08-25',0,2,'')
+Insert into NurseAvailability values
+(5,'2025-08-25',0,3,'')
+
+
+-- Ava not available : morning, evening, night
+Insert into NurseAvailability values
+(6,'2025-08-25',0,1,'')
+Insert into NurseAvailability values
+(6,'2025-08-25',0,2,'')
+Insert into NurseAvailability values
+(6,'2025-08-25',0,3,'')
+
+-- Mia not available : morning, evening, night
+Insert into NurseAvailability values
+(7,'2025-08-25',0,1,'')
+Insert into NurseAvailability values
+(7,'2025-08-25',0,2,'')
+Insert into NurseAvailability values
+(7,'2025-08-25',0,3,'')
+
+-- Sumit not available : morning, evening, night
+Insert into NurseAvailability values
+(15,'2025-08-25',0,1,'')
+Insert into NurseAvailability values
+(15,'2025-08-25',0,2,'')
+Insert into NurseAvailability values
+(15,'2025-08-25',0,3,'')
+
+Delete From NurseAvailability
+
+Select * From ShiftType
+
