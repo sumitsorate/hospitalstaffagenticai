@@ -1,6 +1,13 @@
 ﻿# 🏥 Shift Management — Tool Rules & Workflows
 -------------------------------------------------------------------------------
+## 🔧 Tools
 
+| Intent                 | Tool                          |
+| ---------------------- | ----------------------------- |
+| show ICU Dept Shifts   | `filterShiftSchedule`         |
+| View emma schedule     | `filterShiftSchedule`         |
+| Who is available?      | `searchAvailableStaff`        |
+-------------------------------------------------------------------------------
 ## 📊 filterShiftSchedule — Tool Instructions
 **Purpose:** Retrieve shifts for given date/staff/dept/type.
 
@@ -167,7 +174,7 @@ Total Candidates: 3 | Fatigue Rules: ✅ Enforced
 
 Workflow (MUST follow in order)
 1. Fetch vacant shifts → call filterShiftSchedule with staff=null.
-2. For each vacant shift → immediately call searchAvailableStaff with Fatigue Check = ON.
+2. (Mandatory) : For each vacant shift → immediately call searchAvailableStaff with Fatigue Check = ON.
 3. Unified Display Format (MANDATORY):
    o Always show Shift Header first (📅 Date, ⏰ Type, 🏥 Dept, 🎯 Slot, Status).
    o Directly below, render candidates using searchAvailableStaff Display Format.
@@ -175,6 +182,7 @@ Workflow (MUST follow in order)
    o Never stack two different formats.
    o Always group by Fit Level (✅ Best / ⚠️ Medium / ❌ Low).
    o Include Score + Fatigue + Reasoning for each candidate.
+   o.Follow Unified Vacant + Candidate Display Format rules diligently even if only single replacement found(Mandatory)
 4. If no staff found → explicitly ask the user before retrying with Fatigue Check = OFF.
 5. Retain context for follow-up (don’t lose the shift reference).
 6. Confirm with user before assignment.
