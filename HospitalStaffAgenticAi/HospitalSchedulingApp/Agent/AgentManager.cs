@@ -128,15 +128,33 @@ namespace HospitalSchedulingApp.Agent
             }
 
             // Create a new agent
-            string systemPromptPath = Path.Combine("SystemPrompt", "SystemPrompt.txt");
+            //string systemPromptPath = Path.Combine("SystemPrompt", "SystemPrompt.txt");
+            string introPath = Path.Combine("SystemPrompt", "intro.txt");
+            string shiftRulePromptPath = Path.Combine("SystemPrompt", "shift-rules.txt");
+            string leaveRulePath = Path.Combine("SystemPrompt", "leave-rules.txt");
+            string resolverPath = Path.Combine("SystemPrompt", "resolver-rules.txt");
+            string formattingPath = Path.Combine("SystemPrompt", "formatting.txt");
 
-            if (!File.Exists(systemPromptPath))
+            // Check all required files exist
+            var requiredFiles = new[] {   introPath, shiftRulePromptPath, leaveRulePath, resolverPath, formattingPath };
+            foreach (var file in requiredFiles)
             {
-                _logger.LogError("System prompt file not found at: {Path}", systemPromptPath);
-                throw new FileNotFoundException($"System prompt file not found at: {systemPromptPath}");
+                if (!File.Exists(file))
+                {
+                    _logger.LogError("Required prompt file not found at: {Path}", file);
+                    throw new FileNotFoundException($"Required prompt file not found at: {file}");
+                }
             }
 
-            string instructions = await File.ReadAllTextAsync(systemPromptPath);
+            // Read and combine all prompt files
+            string instructions = string.Join(Environment.NewLine,
+                await File.ReadAllTextAsync(introPath),
+                await File.ReadAllTextAsync(shiftRulePromptPath),
+                await File.ReadAllTextAsync(leaveRulePath),
+                await File.ReadAllTextAsync(resolverPath),
+                await File.ReadAllTextAsync(formattingPath)
+            );
+
             string modelDeployment = _config["ModelDeploymentName"]
                 ?? throw new ArgumentNullException("ModelDeploymentName configuration is missing.");
 
