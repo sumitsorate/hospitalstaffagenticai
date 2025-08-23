@@ -1,5 +1,9 @@
 ﻿using Azure.AI.Agents.Persistent;
+using Castle.Core.Logging;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
+using HospitalSchedulingApp.Common.Extensions;
+using HospitalSchedulingApp.Common.Handlers;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
@@ -8,160 +12,129 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
     /// Tool handler that resolves human-readable relative date phrases like 
     /// "today", "next week", "this weekend", etc. into machine-usable ISO date strings (yyyy-MM-dd).
     /// </summary>
-    public class ResolveRelativeDateToolHandler : IToolHandler
+    public class ResolveRelativeDateToolHandler : BaseToolHandler
     {
-        private readonly ILogger<ResolveRelativeDateToolHandler> _logger;
+        public ResolveRelativeDateToolHandler(ILogger<ResolveRelativeDateToolHandler> logger)
+            : base(logger) { }
 
-        public ResolveRelativeDateToolHandler(            
-            ILogger<ResolveRelativeDateToolHandler> logger)
-        {
-            _logger = logger;
-        }
+        public override string ToolName => ResolveRelativeDateTool.GetTool().Name;
 
-        /// <summary>
-        /// Name of the tool this handler serves.
-        /// </summary>
-        public string ToolName => ResolveRelativeDateTool.GetTool().Name;
-
-        /// <summary>
-        /// Handles incoming tool call and resolves date phrases to actual date(s).
-        /// </summary>
-        public Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+        public override Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
             try
             {
-                // Ensure input contains "phrase"
-                if (!root.TryGetProperty("phrase", out var phraseElement))
+                string phrase = root.FetchString("phrase")?.ToLowerInvariant().Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(phrase))
                 {
-                    _logger.LogWarning("Missing 'phrase' parameter in resolveRelativeDate tool call.");
-                    return Task.FromResult<ToolOutput?>(null);
+                    _logger.LogWarning("ResolveRelativeDate: Missing phrase parameter.");
+                    return Task.FromResult(CreateError(call.Id, "❌ Date phrase is required."));
                 }
 
-                var phrase = phraseElement.GetString()?.ToLowerInvariant().Trim() ?? string.Empty;
-                //var today = DateTime.UtcNow.Date;
                 var today = DateTime.Now.Date;
-                string resultJson;
+                object result;
 
                 switch (phrase)
                 {
                     case "today":
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.ToString("yyyy-MM-dd") });
+                        result = new { resolvedDate = today.ToString("yyyy-MM-dd") };
                         break;
 
                     case "tomorrow":
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddDays(1).ToString("yyyy-MM-dd") });
+                        result = new { resolvedDate = today.AddDays(1).ToString("yyyy-MM-dd") };
                         break;
 
                     case "yesterday":
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddDays(-1).ToString("yyyy-MM-dd") });
+                        result = new { resolvedDate = today.AddDays(-1).ToString("yyyy-MM-dd") };
                         break;
-
-                    case "this week":
-                        var thisWeekEnd = today.AddDays(6);
-                        resultJson = JsonSerializer.Serialize(new
-                        {
-                            startDate = today.ToString("yyyy-MM-dd"),
-                            endDate = thisWeekEnd.ToString("yyyy-MM-dd")
-                        });
-                        break;
-
-
 
                     case "day after tomorrow":
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddDays(2).ToString("yyyy-MM-dd") });
+                        result = new { resolvedDate = today.AddDays(2).ToString("yyyy-MM-dd") };
                         break;
 
                     case "day before yesterday":
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddDays(-2).ToString("yyyy-MM-dd") });
+                        result = new { resolvedDate = today.AddDays(-2).ToString("yyyy-MM-dd") };
+                        break;
+
+                    case "this week":
+                        result = new
+                        {
+                            startDate = today.ToString("yyyy-MM-dd"),
+                            endDate = today.AddDays(6).ToString("yyyy-MM-dd")
+                        };
                         break;
 
                     case "next week":
-                        var nextWeekStart = today.AddDays(7);
-                        var nextWeekEnd = today.AddDays(13);
-                        resultJson = JsonSerializer.Serialize(new
+                        result = new
                         {
-                            startDate = nextWeekStart.ToString("yyyy-MM-dd"),
-                            endDate = nextWeekEnd.ToString("yyyy-MM-dd")
-                        });
+                            startDate = today.AddDays(7).ToString("yyyy-MM-dd"),
+                            endDate = today.AddDays(13).ToString("yyyy-MM-dd")
+                        };
                         break;
 
- 
-                    case "previous week":
                     case "last week":
-                        var lastWeekStart = today.AddDays(-7);
-                        var lastWeekEnd = today.AddDays(-1);
-                        resultJson = JsonSerializer.Serialize(new
+                    case "previous week":
+                        result = new
                         {
-                            startDate = lastWeekStart.ToString("yyyy-MM-dd"),
-                            endDate = lastWeekEnd.ToString("yyyy-MM-dd")
-                        });
+                            startDate = today.AddDays(-7).ToString("yyyy-MM-dd"),
+                            endDate = today.AddDays(-1).ToString("yyyy-MM-dd")
+                        };
                         break;
-
 
                     case "next month":
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddMonths(1).ToString("yyyy-MM-dd") });
+                        result = new { resolvedDate = today.AddMonths(1).ToString("yyyy-MM-dd") };
                         break;
 
                     case "last month":
                     case "previous month":
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.AddMonths(-1).ToString("yyyy-MM-dd") });
+                        result = new { resolvedDate = today.AddMonths(-1).ToString("yyyy-MM-dd") };
                         break;
 
                     case "this weekend":
-                        // Saturday of this week or upcoming
                         var nextSaturday = GetNextWeekday(today, DayOfWeek.Saturday);
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = nextSaturday.ToString("yyyy-MM-dd") });
+                        result = new { resolvedDate = nextSaturday.ToString("yyyy-MM-dd") };
                         break;
 
                     case "last weekend":
                         var lastSaturday = GetLastWeekdayBefore(today, DayOfWeek.Saturday);
-                        var lastSunday = lastSaturday.AddDays(1);
-                        resultJson = JsonSerializer.Serialize(new
+                        result = new
                         {
                             startDate = lastSaturday.ToString("yyyy-MM-dd"),
-                            endDate = lastSunday.ToString("yyyy-MM-dd")
-                        });
+                            endDate = lastSaturday.AddDays(1).ToString("yyyy-MM-dd")
+                        };
                         break;
 
                     default:
-                        // Handle "next Monday", "next Friday", etc.
                         if (phrase.StartsWith("next ", StringComparison.InvariantCultureIgnoreCase))
                         {
                             var dayPart = phrase.Substring(5).Trim();
                             if (Enum.TryParse<DayOfWeek>(dayPart, true, out var targetDay))
                             {
                                 var nextDay = GetNextWeekday(today, targetDay);
-                                resultJson = JsonSerializer.Serialize(new { resolvedDate = nextDay.ToString("yyyy-MM-dd") });
-                                return Task.FromResult<ToolOutput?>(new ToolOutput(call.Id, resultJson));
+                                result = new { resolvedDate = nextDay.ToString("yyyy-MM-dd") };
+                                return Task.FromResult(CreateSuccess(call.Id, "✅ Resolved relative date.", result));
                             }
                         }
 
-                        // Fallback to today if unrecognized phrase
-                        resultJson = JsonSerializer.Serialize(new { resolvedDate = today.ToString("yyyy-MM-dd") });
+                        _logger.LogWarning("ResolveRelativeDate: Unrecognized phrase '{Phrase}', defaulting to today.", phrase);
+                        result = new { resolvedDate = today.ToString("yyyy-MM-dd") };
                         break;
                 }
 
-                return Task.FromResult<ToolOutput?>(new ToolOutput(call.Id, resultJson));
+                return Task.FromResult(CreateSuccess(call.Id, "✅ Resolved relative date.", result));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error resolving relative date.");
-                return Task.FromResult<ToolOutput?>(null);
+                _logger.LogError(ex, "ResolveRelativeDate: Error resolving relative date.");
+                return Task.FromResult(CreateError(call.Id, "⚠️ Failed to resolve relative date."));
             }
         }
 
-        /// <summary>
-        /// Gets the next date matching the target weekday from the given date.
-        /// </summary>
         private static DateTime GetNextWeekday(DateTime from, DayOfWeek targetDay)
         {
             int daysToAdd = ((int)targetDay - (int)from.DayOfWeek + 7) % 7;
-            return from.AddDays(daysToAdd == 0 ? 7 : daysToAdd); // Skip to *next* week's same day if today matches
+            return from.AddDays(daysToAdd == 0 ? 7 : daysToAdd); // Skip to *next* week if today matches
         }
 
-        /// <summary>
-        /// Gets the previous date matching the target weekday before the given date.
-        /// </summary>
         private static DateTime GetLastWeekdayBefore(DateTime from, DayOfWeek targetDay)
         {
             int daysBack = ((int)from.DayOfWeek - (int)targetDay + 7) % 7;

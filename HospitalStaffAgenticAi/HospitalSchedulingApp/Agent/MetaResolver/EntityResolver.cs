@@ -95,7 +95,7 @@ namespace HospitalSchedulingApp.Agent.MetaResolver
             var tokens = phrase.Trim().ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
              
 
-            var department = await ResolveDepartmentAsync(phrase); 
+             // var department = await ResolveDepartmentAsync(phrase); 
             var shiftType = await ResolveShiftTypeAsync(tokens);
             var shiftStatus = await ResolveShiftStatusAsync(tokens);
             var leaveStatus = await ResolveLeaveStatusAsync(tokens, phrase);
@@ -105,7 +105,7 @@ namespace HospitalSchedulingApp.Agent.MetaResolver
             
             return new ResolveEntitiesResult
             {
-                Department = department,              
+               // Department = department,              
                 ShiftType = shiftType,
                 ShiftStatus = shiftStatus,
                 LeaveStatus = leaveStatus,
@@ -118,8 +118,8 @@ namespace HospitalSchedulingApp.Agent.MetaResolver
         #region Resolution Methods
 
  
-        private async Task<Department?> ResolveDepartmentAsync(string phrase) =>
-            await _departmentService.FetchDepartmentInformationAsync(phrase.ToLower());
+        //private async Task<Department?> ResolveDepartmentAsync(string phrase) =>
+        //    await _departmentService.FetchDepartmentInformationAsync(phrase.ToLower());
 
 
         private async Task<ShiftType?> ResolveShiftTypeAsync(string[] tokens)

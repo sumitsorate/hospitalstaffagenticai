@@ -1,6 +1,6 @@
 ﻿using Azure;
 using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.Handlers;
+using HospitalSchedulingApp.Common.Handlers.Interfaces;
 using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dtos.Auth;
 using HospitalSchedulingApp.Services.AuthServices.Interfaces;

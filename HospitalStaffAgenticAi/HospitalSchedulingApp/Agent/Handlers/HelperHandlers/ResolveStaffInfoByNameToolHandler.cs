@@ -1,70 +1,60 @@
 ﻿using Azure.AI.Agents.Persistent;
+using Castle.Core.Logging;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
-using HospitalSchedulingApp.Services.Interfaces; // Assuming your FetchActiveStaffByNamePatternAsync is in a service
+using HospitalSchedulingApp.Common.Extensions;
+using HospitalSchedulingApp.Common.Handlers;
+using HospitalSchedulingApp.Services.Interfaces;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
 {
-    public class ResolveStaffInfoByNameToolHandler : IToolHandler
+    public class ResolveStaffInfoByNameToolHandler : BaseToolHandler
     {
         private readonly IStaffService _staffService;
-        private readonly ILogger<ResolveStaffInfoByNameToolHandler> _logger;
 
         public ResolveStaffInfoByNameToolHandler(
             IStaffService staffService,
             ILogger<ResolveStaffInfoByNameToolHandler> logger)
+            : base(logger)
         {
-            _staffService = staffService;
-            _logger = logger;
+            _staffService = staffService ?? throw new ArgumentNullException(nameof(staffService));
         }
 
-        public string ToolName => ResolveStaffInfoByNameTool.GetTool().Name;
+        public override string ToolName => ResolveStaffInfoByNameTool.GetTool().Name;
 
-        public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+        public override async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
-            string inputName = root.TryGetProperty("name", out var nameProp)
-                ? nameProp.GetString()?.Trim() ?? string.Empty
-                : string.Empty;
+            string inputName = root.FetchString("name")?.Trim() ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(inputName))
             {
-                _logger.LogWarning("resolveStaffInfoByName: Name was not provided.");
-                return CreateError(call.Id, "Staff name is required.");
+                _logger.LogWarning("ResolveStaffInfoByName: Name input is missing.");
+                return CreateError(call.Id, "❌ Staff name is required.");
             }
 
             if (inputName.Length < 2)
             {
-                _logger.LogWarning("resolveStaffInfoByName: Name '{Input}' is too short.", inputName);
-                return CreateError(call.Id, "Staff name must be at least 2 characters long.");
+                _logger.LogWarning("ResolveStaffInfoByName: Name '{Input}' is too short.", inputName);
+                return CreateError(call.Id, "⚠️ Staff name must be at least 2 characters long.");
             }
 
             var matches = await _staffService.FetchActiveStaffByNamePatternAsync(inputName);
 
             if (!matches.Any())
             {
-                _logger.LogInformation("resolveStaffInfoByName: No staff found for '{Name}'", inputName);
-                return CreateError(call.Id, $"No staff found matching: {inputName}");
+                _logger.LogInformation("ResolveStaffInfoByName: No staff found for '{Name}'", inputName);
+                return CreateError(call.Id, $"❌ No staff found matching: {inputName}");
             }
 
-            var result = new
+            var data = new
             {
-                success = true,
-                matches = matches,
-                            };
+                matches
+            };
 
-            _logger.LogInformation("resolveStaffInfoByName: Found {Count} match(es) for '{Input}'", matches.Count, inputName);
-            return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
-        }
+            _logger.LogInformation("ResolveStaffInfoByName: Found {Count} match(es) for '{Input}'", matches.Count, inputName);
 
-        private ToolOutput CreateError(string callId, string message)
-        {
-            var errorJson = JsonSerializer.Serialize(new
-            {
-                success = false,
-                error = message
-            });
-
-            return new ToolOutput(callId, errorJson);
+            return CreateSuccess(call.Id, "✅ Staff information resolved successfully.", data);
         }
     }
 }

@@ -1,5 +1,8 @@
 ﻿using Azure.AI.Agents.Persistent;
+using Castle.Core.Logging;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
+using HospitalSchedulingApp.Common.Extensions;
+using HospitalSchedulingApp.Common.Handlers;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.Json;
@@ -11,22 +14,20 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
     /// Handler to resolve natural language date(s) into a standardized date range (yyyy-MM-dd).
     /// Supports single date or a range in any order, with or without years.
     /// </summary>
-    public class ResolveNaturalLanguageDateToolHandler : IToolHandler
+    public class ResolveNaturalLanguageDateToolHandler : BaseToolHandler
     {
-        private readonly ILogger<ResolveNaturalLanguageDateToolHandler> _logger;
-
         public ResolveNaturalLanguageDateToolHandler(ILogger<ResolveNaturalLanguageDateToolHandler> logger)
+            : base(logger) // ✅ common logging/error helpers
         {
-            _logger = logger;
         }
 
-        public string ToolName => ResolveNaturalLanguageDateTool.GetTool().Name;
+        public override string ToolName => ResolveNaturalLanguageDateTool.GetTool().Name;
 
-        public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+        public override async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
-            string input = root.TryGetProperty("naturalDate", out var dateProp)
-                ? dateProp.GetString()?.Trim() ?? string.Empty
-                : string.Empty;
+            string input = root.FetchDateTime("naturalDate")?.ToString("o")   // ISO 8601
+                         ?? root.FetchString("naturalDate")
+                         ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(input))
             {
@@ -74,6 +75,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
                 }
             }
 
+            // Fallback: try whole input if no parts parsed
             if (!parsedDates.Any() && DateTime.TryParse(input, out DateTime singleParsed))
             {
                 if (singleParsed.Year == 1)
@@ -98,20 +100,13 @@ namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
 
             var result = new
             {
-                success = true,
                 input,
                 startDate = startDate.ToString("yyyy-MM-dd"),
                 endDate = endDate.ToString("yyyy-MM-dd")
             };
 
             _logger.LogInformation("ResolveNaturalLanguageDate: Resolved range '{Start}' to '{End}'", result.startDate, result.endDate);
-            return await Task.FromResult(new ToolOutput(call.Id, JsonSerializer.Serialize(result)));
-        }
-
-        private ToolOutput CreateError(string callId, string message)
-        {
-            var error = new { success = false, error = message };
-            return new ToolOutput(callId, JsonSerializer.Serialize(error));
+            return CreateSuccess(call.Id, "✅ Date(s) resolved successfully.", result);
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.Handlers;
 using HospitalSchedulingApp.Agent.MetaResolver;
 using HospitalSchedulingApp.Agent.Tools.Department;
+using HospitalSchedulingApp.Common.Handlers.Interfaces;
 using System.Text.Json;
 
 public class ResolveEntitiesToolHandler : IToolHandler

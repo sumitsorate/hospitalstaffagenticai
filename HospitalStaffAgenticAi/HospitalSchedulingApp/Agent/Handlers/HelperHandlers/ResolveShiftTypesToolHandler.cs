@@ -1,69 +1,59 @@
 ﻿using Azure.AI.Agents.Persistent;
+using Castle.Core.Logging;
 using HospitalSchedulingApp.Agent.MetaResolver;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
-using HospitalSchedulingApp.Common.Enums;
+using HospitalSchedulingApp.Common.Extensions;
+using HospitalSchedulingApp.Common.Handlers;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.HelperHandlers
 {
-    public class ResolveShiftTypeToolHandler : IToolHandler
+    public class ResolveShiftTypeToolHandler : BaseToolHandler
     {
         private readonly IEntityResolver _entityResolver;
-        private readonly ILogger<ResolveShiftTypeToolHandler> _logger;
 
         public ResolveShiftTypeToolHandler(
             IEntityResolver entityResolver,
             ILogger<ResolveShiftTypeToolHandler> logger)
+            : base(logger)
         {
-            _entityResolver = entityResolver;
-            _logger = logger;
+            _entityResolver = entityResolver ?? throw new ArgumentNullException(nameof(entityResolver));
         }
 
-        public string ToolName => ResolveShiftTypeTool.GetTool().Name;
+        public override string ToolName => ResolveShiftTypeTool.GetTool().Name;
 
-        public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+        public override async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
-            string input = root.TryGetProperty("shift", out var shiftProp)
-                ? shiftProp.GetString()?.Trim() ?? string.Empty
-                : string.Empty;
+            string input = root.FetchString("shift")?.Trim() ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(input))
             {
                 _logger.LogWarning("ResolveShiftType: Shift input is missing.");
-                return CreateError(call.Id, "Shift type is required.");
+                return CreateError(call.Id, "❌ Shift type is required.");
             }
 
             var resolved = await _entityResolver.ResolveEntitiesAsync(input);
 
             if (resolved.ShiftType == null)
             {
-                _logger.LogInformation("ResolveShiftType: Invalid input '{Input}'", input);
-                return CreateError(call.Id, $"Invalid shift type: '{input}'");
+                _logger.LogInformation("ResolveShiftType: No shift type match found for '{Input}'", input);
+                return CreateError(call.Id, $"❌ Invalid shift type: '{input}'. Please provide a valid shift type.");
             }
 
-            var matchedType = resolved.ShiftType.ShiftTypeName;
-            var matchedTypeValue = resolved.ShiftType.ShiftTypeId; // assuming this corresponds to your enum int values
+            var matchedTypeName = resolved.ShiftType.ShiftTypeName;
+            var matchedTypeValue = resolved.ShiftType.ShiftTypeId;
 
-            var result = new
+            var data = new
             {
-                success = true,
-                match = new
-                {
-                    input,
-                    matchedType,
-                    matchedTypeValue
-                }
+                input,
+                matchedType = matchedTypeName,
+                matchedTypeValue
             };
 
-            _logger.LogInformation("ResolveShiftType: Mapped '{Input}' to '{MatchedType}'", input, matchedType);
-            return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
-        }
+            _logger.LogInformation("ResolveShiftType: Mapped '{Input}' to ShiftType '{MatchedType}'", input, matchedTypeName);
 
-        private ToolOutput CreateError(string callId, string message)
-        {
-            var error = new { success = false, error = message };
-            return new ToolOutput(callId, JsonSerializer.Serialize(error));
+            return CreateSuccess(call.Id, "✅ Resolved shift type successfully.", data);
         }
     }
 }

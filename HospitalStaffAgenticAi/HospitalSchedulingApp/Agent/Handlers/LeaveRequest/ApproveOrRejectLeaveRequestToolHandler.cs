@@ -1,12 +1,14 @@
 ﻿using Azure.AI.Agents.Persistent;
+using Castle.Core.Logging;
 using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
 using HospitalSchedulingApp.Common.Enums;
+using HospitalSchedulingApp.Common.Exceptions;
+using HospitalSchedulingApp.Common.Extensions;
+using HospitalSchedulingApp.Common.Handlers;
 using HospitalSchedulingApp.Dtos.LeaveRequest.Request;
-using HospitalSchedulingApp.Dtos.LeaveRequest.Response;
 using HospitalSchedulingApp.Dtos.Shift.Requests;
 using HospitalSchedulingApp.Dtos.Shift.Response;
 using HospitalSchedulingApp.Dtos.Staff.Requests;
-using HospitalSchedulingApp.Dtos.Staff.Response;
 using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -14,12 +16,11 @@ using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
 {
-    public class ApproveOrRejectLeaveRequestToolHandler : IToolHandler
+    public class ApproveOrRejectLeaveRequestToolHandler : BaseToolHandler
     {
         private readonly ILeaveRequestService _leaveRequestService;
         private readonly IPlannedShiftService _plannedShiftService;
         private readonly IStaffService _staffService;
-        private readonly ILogger<ApproveOrRejectLeaveRequestToolHandler> _logger;
         private readonly IUserContextService _userContextService;
 
         public ApproveOrRejectLeaveRequestToolHandler(
@@ -28,41 +29,33 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
             IPlannedShiftService plannedShiftService,
             IUserContextService userContextService,
             IStaffService staffService)
+            : base(logger)
         {
             _leaveRequestService = leaveRequestService;
-            _logger = logger;
             _plannedShiftService = plannedShiftService;
             _staffService = staffService;
             _userContextService = userContextService;
         }
 
-        public string ToolName => ApproveOrRejectLeaveRequestTool.GetTool().Name;
+        public override string ToolName => ApproveOrRejectLeaveRequestTool.GetTool().Name;
 
-        public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+        public override async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
-            var isScheduler = _userContextService.IsScheduler();
-            if (!isScheduler)
-            {
-                return CreateError(call.Id, "🚫 Oops! You're not authorized to perform this action. Let me know if you need help with something else.");
-            }
+
             try
             {
                 // Extract inputs
-                int? leaveRequestId = root.TryGetProperty("leaveRequestId", out var idProp) && idProp.TryGetInt32(out var lid) ? lid : null;
-                int? staffId = root.TryGetProperty("staffId", out var staffProp) && staffProp.TryGetInt32(out var sid) ? sid : null;
-                int? leaveTypeId = root.TryGetProperty("leaveTypeId", out var typeProp) && typeProp.TryGetInt32(out var ltid) ? ltid : null;
+                int? leaveRequestId = root.FetchInt("leaveRequestId");
+                int? staffId = root.FetchInt("staffId");
+                int? leaveTypeId = root.FetchInt("leaveTypeId");
 
-                DateTime? startDate = root.TryGetProperty("startDate", out var startProp) &&
-                                      DateTime.TryParse(startProp.GetString(), out var start)
-                                      ? start : null;
-
-                DateTime? endDate = root.TryGetProperty("endDate", out var endProp) &&
-                                    DateTime.TryParse(endProp.GetString(), out var end)
-                                    ? end : null;
+                DateTime? startDate = root.FetchDateTime("startDate");
+                DateTime? endDate = root.FetchDateTime("endDate");
 
                 // Validate status
-                if (!root.TryGetProperty("newStatus", out var statusProp) ||
-                    !Enum.TryParse<LeaveRequestStatuses>(statusProp.GetString(), true, out var newStatus) ||
+                string? statusStr = root.FetchString("newStatus");
+                if (string.IsNullOrWhiteSpace(statusStr) ||
+                    !Enum.TryParse<LeaveRequestStatuses>(statusStr, true, out var newStatus) ||
                     (newStatus != LeaveRequestStatuses.Approved && newStatus != LeaveRequestStatuses.Rejected))
                 {
                     return CreateError(call.Id, "❌ Invalid or missing `newStatus`. It must be either 'Approved' or 'Rejected'.");
@@ -91,7 +84,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     return CreateError(call.Id, "❌ Failed to update leave request. It may already be processed or does not exist.");
                 }
 
-                // Only do shift replacement suggestion if approved
+                // Collect impacted shifts if Approved
                 var shiftReplacementOptions = new List<ShiftReplacementOptions>();
 
                 if (newStatus == LeaveRequestStatuses.Approved)
@@ -107,9 +100,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
 
                     foreach (var impactedShift in impactedShifts)
                     {
-                        // Unassign Shifts
-                        var unassignShift = await _plannedShiftService
-                            .UnassignedShiftFromStaffAsync(impactedShift.PlannedShiftId);
+                        // Unassign shift
+                        await _plannedShiftService.UnassignedShiftFromStaffAsync(impactedShift.PlannedShiftId);
 
                         var availableStaffFilter = new AvailableStaffFilterDto
                         {
@@ -119,7 +111,7 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                             EndDate = DateOnly.FromDateTime(impactedShift.ShiftDate)
                         };
 
-                        // Replace shifts with staff
+                        // Suggest replacements
                         var replacements = await _staffService.SearchAvailableStaffAsync(availableStaffFilter);
 
                         shiftReplacementOptions.Add(new ShiftReplacementOptions
@@ -135,34 +127,24 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     }
                 }
 
-                var response = new
-                {
-                    success = true,
-                    message = $"✅ Leave request has been successfully **{newStatus.ToString().ToLower()}**.",
-                    leaveRequest = updatedRequest,
-                    impactedShifts = shiftReplacementOptions
-                };
-
-                string json = JsonSerializer.Serialize(response);
-                _logger.LogInformation("Leave request update result: {Json}", json);
-
-                return new ToolOutput(call.Id, json);
+                return CreateSuccess(call.Id,
+                    $"✅ Leave request has been successfully **{newStatus.ToString().ToLower()}**.",
+                    new
+                    {
+                        leaveRequest = updatedRequest,
+                        impactedShifts = shiftReplacementOptions
+                    });
+            }
+            catch (BusinessRuleException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return CreateError(call.Id, ex.Message);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in ApproveOrRejectLeaveRequestToolHandler");
                 return CreateError(call.Id, "❌ An internal error occurred while processing the leave request.");
             }
-        }
-
-        private ToolOutput CreateError(string toolCallId, string message)
-        {
-            var error = new
-            {
-                success = false,
-                error = message
-            };
-            return new ToolOutput(toolCallId, JsonSerializer.Serialize(error));
         }
     }
 }
