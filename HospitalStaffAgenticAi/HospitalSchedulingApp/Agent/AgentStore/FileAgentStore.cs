@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using HospitalSchedulingApp.Agent.Models;
+using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.AgentStore
 {
@@ -9,24 +10,8 @@ namespace HospitalSchedulingApp.Agent.AgentStore
     /// </summary>
     public class FileAgentStore : IAgentStore
     {
-        private readonly string _filePath = "agent_store.json";
+        private readonly string _agentStoreFile = Path.Combine("Config", "agent-config.json");
 
-        /// <summary>
-        /// Loads the agent ID associated with the specified agent name from the JSON file.
-        /// </summary>
-        /// <param name="agentName">The name of the agent to retrieve the ID for.</param>
-        /// <returns>
-        /// A task representing the asynchronous operation. The result contains the agent ID if found, or <c>null</c> otherwise.
-        /// </returns>
-        public async Task<string?> LoadAgentIdAsync(string agentName)
-        {
-            if (!File.Exists(_filePath)) return null;
-
-            var json = await File.ReadAllTextAsync(_filePath);
-            var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-
-            return data != null && data.TryGetValue(agentName, out var id) ? id : null;
-        }
 
         /// <summary>
         /// Saves or updates the agent ID associated with the specified agent name to the JSON file.
@@ -36,18 +21,66 @@ namespace HospitalSchedulingApp.Agent.AgentStore
         /// <returns>A task that represents the asynchronous write operation.</returns>
         public async Task SaveAgentIdAsync(string agentName, string agentId)
         {
-            Dictionary<string, string> data = new();
+            if (!File.Exists(_agentStoreFile))
+                throw new FileNotFoundException($"Agent config file not found: {_agentStoreFile}");
 
-            if (File.Exists(_filePath))
+            var json = await File.ReadAllTextAsync(_agentStoreFile);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            // Copy the whole config to a mutable dictionary
+            var configDict = JsonSerializer.Deserialize<Dictionary<string, object>>(json) ?? new();
+
+            // If "agent" section exists, update assistanceId
+            if (root.TryGetProperty("agent", out var agentElement))
             {
-                var json = await File.ReadAllTextAsync(_filePath);
-                data = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new();
+                var agentDict = JsonSerializer.Deserialize<Dictionary<string, object>>(agentElement.GetRawText()) ?? new();
+                agentDict["assistanceId"] = agentId;
+                configDict["agent"] = agentDict;
+            }
+            else
+            {
+                // If no "agent" section, create one
+                configDict["agent"] = new Dictionary<string, object> {
+                    { "assistanceId", agentId }
+                 };
             }
 
-            data[agentName] = agentId;
+            var updatedJson = JsonSerializer.Serialize(configDict, new JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(_agentStoreFile, updatedJson);
+        }
 
-            var updatedJson = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(_filePath, updatedJson);
+        /// <summary>
+        /// Fetches agent information from the config/agent-config.json file and returns an AgentDefinition.
+        /// </summary>
+        /// <returns>
+        /// A task representing the asynchronous operation. The result contains the AgentDefinition if found, or <c>null</c> otherwise.
+        /// </returns>
+        public async Task<AgentDefinition?> FetchAgentInformation()
+        {
+            if (!File.Exists(_agentStoreFile))
+                return null;
+
+            var json = await File.ReadAllTextAsync(_agentStoreFile);
+            using var doc = JsonDocument.Parse(json);
+
+            if (!doc.RootElement.TryGetProperty("agent", out var agentElement))
+                return null;
+
+            var agentDefinition = agentElement.Deserialize<AgentDefinition>();
+
+            if (agentDefinition == null)
+                return null;
+
+            string instructions = string.Empty;
+            foreach (var item in agentDefinition.SystemPromptPaths)
+            {
+                instructions += await File.ReadAllTextAsync(Path.Combine("SystemPrompt", item)) + Environment.NewLine;
+            }
+
+            agentDefinition.Instructions = instructions;
+
+            return agentDefinition;
         }
     }
 }

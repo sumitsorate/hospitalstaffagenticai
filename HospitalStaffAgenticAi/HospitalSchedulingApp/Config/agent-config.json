@@ -1,0 +1,14 @@
+{
+  "agent": {
+    "name": "HospitalSchedulingAgent",
+    "description": "An agent to assist with hospital scheduling tasks, including managing appointments, resources, and patient information.",
+    "modelDeploymentName": "gpt-4.1-mini",
+    "assistanceId": "asst_EU9a7OHEgD3BaZlwma6s4fTP",
+    "systemPromptPaths": [
+      "intro.txt",
+      "resolver-rules.txt",
+      "shift-rules.txt",
+      "leave-rules.txt"
+    ]
+  }
+}
