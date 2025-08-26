@@ -64,6 +64,8 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                 {
                     return CreateError(call.Id, "leaveEnd must be on or after leaveStart.");
                 }
+                 
+
 
                 // ✅ Check if leave exists
                 var existing = await _leaveRequestService.FetchLeaveRequestInfoAsync(

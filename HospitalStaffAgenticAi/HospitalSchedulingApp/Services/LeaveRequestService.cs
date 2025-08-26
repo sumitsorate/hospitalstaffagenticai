@@ -60,17 +60,6 @@ namespace HospitalSchedulingApp.Services
                 filter.StaffId = loggedInUserStaffId;
             }
 
-            // Validation: prevent duplicate leave requests for same employee/date
-            var leaveRequest = await FetchLeaveRequestInfoAsync(
-                staffId: filter.StaffId ?? 0,
-                leaveStart: filter.StartDate.Value,
-                leaveEnd: filter.EndDate.Value);
-
-            if (leaveRequest != null)
-            {
-                throw new BusinessRuleException("Leave already exists for the same date for this employee.");
-            }
-
             // Fetch related entities
             var leaveRequests = await _leaveRequestRepo.GetAllAsync();
             var allStaff = await _staffRepository.GetAllAsync();
@@ -208,9 +197,9 @@ namespace HospitalSchedulingApp.Services
                 leaveStart: request.LeaveStart,
                 leaveEnd: request.LeaveEnd);
 
-            if (existingRequest != null)
+            if (existingRequest == null)
             {
-                throw new BusinessRuleException("Leave already exists for the same date for this employee.");
+                throw new BusinessRuleException("Leave Does not exists for this employee on this date.");
             }
 
 

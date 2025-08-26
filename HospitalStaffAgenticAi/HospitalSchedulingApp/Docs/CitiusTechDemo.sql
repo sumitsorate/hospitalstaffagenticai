@@ -7,7 +7,7 @@
 	Delete From NurseAvailability
 	Delete From AgentConversations
 
-
+	Select * From NurseAvailability
 -- Insert Mock Data
 
 
@@ -126,11 +126,11 @@ VALUES('2025-08-26', 3,2,3,1,3)
 Select * From PlannedShift Where shift_date='2025-08-25'
 
 Update PlannedShift Set assigned_staff_id=null , shift_status_id=5
-Where planned_shift_id=183
+Where planned_shift_id=288
 
  -- Step 1: Run the uncovered shift flow
  -- Assign it to Ava
- -- Step 2 : Add a leave request for Liam : Add a sick leave for Liam on 25th Aug
+ -- Step 2 : Add a leave request for Ava : Add a sick leave for Ava on 25th Aug
  -- Assign it to noah--if in output
  -- Step 3:  How system behaves when staff is not available
  --  Make the same 25th aug ICU night shift as Vacant

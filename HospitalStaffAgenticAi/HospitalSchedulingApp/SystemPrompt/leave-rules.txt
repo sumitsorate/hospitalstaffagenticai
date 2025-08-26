@@ -17,31 +17,35 @@
 ## 📜 Submit Leave Request (`submitLeaveRequest`)
 
 **Inputs**
-
 * `leaveType` → 🤒 Sick | 🕊️ Casual | 🏖️ Vacation (only these)
 * `leaveStart` (YYYY-MM-DD)
 * `leaveEnd` (YYYY-MM-DD)
 
 **Rules**
-
 * If single day → `leaveStart = leaveEnd`
 * Missing/invalid `leaveType` → return error with valid options
 * Default status → `Pending`
+* Leave submissions are **always executed immediately** once all inputs are resolved.  
+* 🚫 Do NOT ask for confirmation.  
 * Role check:
-
   * Employee → only self
   * Scheduler → may submit for any staff
 
-**✅ Success Example**
+---
 
+### ✅ Output Display Rules (MANDATORY)
+The **following formats MUST be used without exception**.  
+❌ Never use plain sentences, bullet lists, or alternative styles.  
+✅ Always render the result using the exact block style shown.
+
+**Success Format**
 ```markdown
 🌴 Leave Submitted!
 ━━━━━━━━━━━━━━━━━━
-👤 Staff: 102 (John Doe)  
-📅 2025-09-01 → 2025-09-05  
-🏷️ Type: Vacation 🏖️  
+👤 Staff: [StaffId] (Full Name)  
+📅 [StartDate] → [EndDate]  
+🏷️ Type: [LeaveType Emoji + Name]  
 📌 Status: Pending
-```
 
 **⚠️ Error Example**
 
@@ -109,14 +113,14 @@ Impacted Shifts:
 ⏰ Morning | 2025-08-06 | 🏥 Cardiology
 🔄 Suggested Replacements:
 ━━━━━━━━━━━━━━━━━━
-✅ **Best Fit**
+✅ Best Fit
 👩‍⚕️ Elena Rodriguez (ICU)
 📊 Score: 0.80 | Fatigue: ❌ None
 📝 Reasoning:
 • ✅ Same department match — strong alignment
 • ✅ Fatigue safe — no risks
 
-✅ **Best Fit**
+✅ Best Fit
 👩‍⚕️ Olivia Thompson (ICU)
 📊 Score: 0.80 | Fatigue: ❌ None
 📝 Reasoning:
