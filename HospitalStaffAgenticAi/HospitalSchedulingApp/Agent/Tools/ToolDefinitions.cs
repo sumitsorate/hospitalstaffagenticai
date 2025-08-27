@@ -12,7 +12,7 @@ namespace HospitalSchedulingApp.Agent.Tools
     {
         public static IReadOnlyList<FunctionToolDefinition> All => new[]
         {
-            ResolveEntitiesTool.GetTool(),
+            
             FilterShiftScheduleTool.GetTool(),
             ResolveDepartmentInfoTool.GetTool(),
             ResolveStaffInfoByNameTool.GetTool(),

@@ -31,7 +31,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="SystemPrompt\HospitalAgentPrompt.docx">
+    <Content Update="Config\agent-config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="SystemPrompt\intro.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="SystemPrompt\leave-rules.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="SystemPrompt\resolver-rules.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="SystemPrompt\shift-rules.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

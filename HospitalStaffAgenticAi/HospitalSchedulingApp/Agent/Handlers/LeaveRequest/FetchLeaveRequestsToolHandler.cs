@@ -1,65 +1,86 @@
 ﻿using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Tools.LeaveRequest;
 using HospitalSchedulingApp.Common.Enums;
+using HospitalSchedulingApp.Common.Exceptions;
+using HospitalSchedulingApp.Common.Extensions;
+using HospitalSchedulingApp.Common.Handlers;
 using HospitalSchedulingApp.Dtos.LeaveRequest.Request;
-using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
 {
-    public class FetchLeaveRequestToolHandler : IToolHandler
+    /// <summary>
+    /// 🎯 Tool handler to fetch leave requests.
+    /// Supports filtering by staff, status, date range, and leave type.
+    /// </summary>
+    public class FetchLeaveRequestToolHandler : BaseToolHandler
     {
         private readonly ILeaveRequestService _leaveRequestService;
-        private readonly ILogger<FetchLeaveRequestToolHandler> _logger;
-        private readonly IUserContextService _userContextService;
 
+        /// <summary>
+        /// Initializes a new instance of <see cref="FetchLeaveRequestToolHandler"/>.
+        /// </summary>
+        /// <param name="leaveRequestService">Service to manage leave requests.</param>
+        /// <param name="logger">Logger instance for structured logging.</param>
         public FetchLeaveRequestToolHandler(
             ILeaveRequestService leaveRequestService,
-            ILogger<FetchLeaveRequestToolHandler> logger,
-            IUserContextService userContextService)
+            ILogger<FetchLeaveRequestToolHandler> logger)
+            : base(logger)
         {
-            _leaveRequestService = leaveRequestService;
-            _logger = logger;
-            _userContextService = userContextService;
+            _leaveRequestService = leaveRequestService
+                ?? throw new ArgumentNullException(nameof(leaveRequestService));
         }
 
-        public string ToolName => FetchLeaveRequestTool.GetTool().Name;
+        /// <summary>
+        /// Gets the tool name used by the AI agent runtime.
+        /// </summary>
+        public override string ToolName => FetchLeaveRequestTool.GetTool().Name;
 
-        public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+        /// <summary>
+        /// Handles the tool execution for fetching leave requests.
+        /// </summary>
+        /// <param name="call">The function tool call object.</param>
+        /// <param name="root">The JSON input payload.</param>
+        /// <returns>Tool output with leave request data or error response.</returns>
+        public override async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
             try
             {
-                // Parse optional fields
-                int? leaveRequestId = root.TryGetProperty("leaveRequestId", out var prop) && prop.TryGetInt32(out var val) ? val : null;
-                int? staffId = root.TryGetProperty("staffId", out var prop2) && prop2.TryGetInt32(out var val2) ? val2 : null;
+                // 🔍 Parse optional filters
+                int? leaveRequestId = root.FetchInt("leaveRequestId");
+                int? staffId = root.FetchInt("staffId");
 
+                // 📌 Leave status validation (enum)
                 LeaveRequestStatuses? leaveStatusId = null;
-                if (root.TryGetProperty("leaveStatusId", out var prop3) && prop3.TryGetInt32(out var val3) &&
-                    Enum.IsDefined(typeof(LeaveRequestStatuses), val3))
+                int? leaveStatusInt = root.FetchInt("leaveStatusId");
+                if (leaveStatusInt.HasValue)
                 {
-                    leaveStatusId = (LeaveRequestStatuses)val3;
+                    if (!Enum.IsDefined(typeof(LeaveRequestStatuses), leaveStatusInt.Value))
+                        throw new BusinessRuleException($"Invalid leave status ID: {leaveStatusInt.Value}");
+
+                    leaveStatusId = (LeaveRequestStatuses)leaveStatusInt.Value;
                 }
 
-                DateTime? startDate = root.TryGetProperty("startDate", out var startProp) &&
-                                      DateTime.TryParse(startProp.GetString(), out var start)
-                                      ? start : null;
+                // 📅 Date range validation
+                DateTime? startDate = root.FetchDateTime("startDate");
+                DateTime? endDate = root.FetchDateTime("endDate");
+                if (startDate.HasValue && endDate.HasValue && startDate > endDate)
+                    throw new BusinessRuleException("Start date cannot be after end date.");
 
-                DateTime? endDate = root.TryGetProperty("endDate", out var endProp) &&
-                                    DateTime.TryParse(endProp.GetString(), out var end)
-                                    ? end : null;
-
+                // 🏷 Leave type validation (enum)
                 LeaveType? leaveTypeId = null;
-                if (root.TryGetProperty("leaveTypeId", out var typeProp) &&
-                    typeProp.TryGetInt32(out var typeVal) &&
-                    Enum.IsDefined(typeof(LeaveType), typeVal))
+                int? leaveTypeInt = root.FetchInt("leaveTypeId");
+                if (leaveTypeInt.HasValue)
                 {
-                    leaveTypeId = (LeaveType)typeVal;
+                    if (!Enum.IsDefined(typeof(LeaveType), leaveTypeInt.Value))
+                        throw new BusinessRuleException($"Invalid leave type ID: {leaveTypeInt.Value}");
+
+                    leaveTypeId = (LeaveType)leaveTypeInt.Value;
                 }
 
-           
-
-                // Build filter object
+                // 📝 Build filter object
                 var filter = new LeaveRequestFilter
                 {
                     LeaveRequestId = leaveRequestId,
@@ -70,52 +91,26 @@ namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
                     LeaveTypeId = leaveTypeId
                 };
 
-                // 🔒 Permission check
-                var isEmployee = _userContextService.IsEmployee();
-                var loggedInUserStaffId = _userContextService.GetStaffId();
+                _logger.LogInformation("Fetching leave requests with filter: {@Filter}", filter);
 
-                if (isEmployee)
-                {
-                    if (filter.StaffId.HasValue && filter.StaffId != loggedInUserStaffId)
-                    {
-                        return CreateError(call.Id, "🚫 You're only allowed to view your own leave requests.");
-                    }
-
-                    // Enforce own ID even if null or tampered
-                    filter.StaffId = loggedInUserStaffId;
-                }
-
-
-                // Fetch results from service
+                // 🚀 Execute service call
                 var leaveRequests = await _leaveRequestService.FetchLeaveRequestsAsync(filter);
 
-                var response = new
-                {
-                    success = true,
-                    message = "📋 Leave requests fetched successfully!",
-                    data = leaveRequests
-                };
-
-                var json = JsonSerializer.Serialize(response);
-                _logger.LogInformation("Leave requests fetched: {Json}", json);
-
-                return new ToolOutput(call.Id, json);
+                // ✅ Return success response
+                return CreateSuccess(call.Id, "Leave requests fetched successfully.", leaveRequests);
+            }
+            catch (BusinessRuleException brEx)
+            {
+                // ⚠️ Known business validation failure
+                _logger.LogWarning(brEx, "Business rule validation failed in FetchLeaveRequestToolHandler");
+                return CreateError(call.Id, $"⚠️ {brEx.Message}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in FetchLeaveRequestToolHandler");
+                // ❌ Unexpected technical failure
+                _logger.LogError(ex, "Unhandled exception in FetchLeaveRequestToolHandler");
                 return CreateError(call.Id, "❌ An internal error occurred while fetching leave requests.");
             }
-        }
-
-        private ToolOutput CreateError(string toolCallId, string message)
-        {
-            var error = new
-            {
-                success = false,
-                error = message
-            };
-            return new ToolOutput(toolCallId, JsonSerializer.Serialize(error));
         }
     }
 }

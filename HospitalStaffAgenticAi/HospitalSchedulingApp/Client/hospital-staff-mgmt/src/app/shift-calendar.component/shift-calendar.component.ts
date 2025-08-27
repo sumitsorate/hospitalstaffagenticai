@@ -122,11 +122,15 @@ eventContent: (arg) => {
           const bType: string = (b.extendedProps.shiftType || '').toLowerCase();
           return (shiftOrder[aType as keyof typeof shiftOrder] || 99) - (shiftOrder[bType as keyof typeof shiftOrder] || 99);
         });
-
+ 
         this.calendarOptions = {
           ...this.calendarOptions,
           events: sortedEvents
         };
+        // this.calendarOptions = {
+        //   ...this.calendarOptions,
+        //   events: events
+        // };
         this.cdRef.detectChanges();
       },
       error: err => {
@@ -155,6 +159,7 @@ eventContent: (arg) => {
   }
 
   transformShiftsToEvents(shifts: PlannedShiftDto[]): any[] {
+    const shiftOrder: { [key: string]: number } = { morning: 1, evening: 2, night: 3 };
     return shifts.map(shift => {
       const isVacant = shift.shiftStatusId === 5;
       if (isVacant) {
@@ -173,7 +178,7 @@ eventContent: (arg) => {
           departmentName: shift.shiftDeparmentName,
           shiftType: shift.shiftTypeName,
           isVacant: isVacant,
-          shiftOrder: shiftOrder[(shift.shiftTypeName || '').toLowerCase()] || 99 // <-- add this
+          shiftOrder: shiftOrder[(shift.shiftTypeName || '').toLowerCase()] || 99
         },
         backgroundColor: isVacant
           ? '#fff3cd'

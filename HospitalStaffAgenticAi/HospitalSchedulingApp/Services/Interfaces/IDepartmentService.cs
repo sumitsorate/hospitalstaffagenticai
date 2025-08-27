@@ -1,9 +1,10 @@
 ﻿using HospitalSchedulingApp.Dal.Entities;
+using HospitalSchedulingApp.Dtos.Department;
 
 namespace HospitalSchedulingApp.Services.Interfaces
 {
     public interface IDepartmentService
     {
-        Task<Department?> FetchDepartmentInformationAsync(string departmentNamePart);
+        Task<DepartmentDto?> FetchDepartmentInformationAsync(string departmentNamePart);
     }
 }

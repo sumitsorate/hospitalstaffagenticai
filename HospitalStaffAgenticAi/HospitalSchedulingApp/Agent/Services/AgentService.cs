@@ -1,6 +1,6 @@
 ﻿using Azure;
 using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.Handlers;
+using HospitalSchedulingApp.Common.Handlers.Interfaces;
 using HospitalSchedulingApp.Dal.Entities;
 using HospitalSchedulingApp.Dtos.Auth;
 using HospitalSchedulingApp.Services.AuthServices.Interfaces;
@@ -240,11 +240,14 @@ namespace HospitalSchedulingApp.Agent.Services
 
         public async Task<MessageContent?> GetAgentResponseAsync(MessageRole role, string message)
         {
-            const int maxRetries = 6; 
-            int delayMs = 4000; // Initial delay
-            const int maxDelayMs = 24000; 
-            const int submitDelayMs = 100; 
-            const int fastPollDelayMs = 1000; // Poll more frequently when close to completion
+            const int maxRetries = 6;
+            const int baseDelayMs = 5000;        // start with small delay for polling
+            const int maxDelayMs = 30000;        // cap at 3s
+            const int submitDelayMs = 100;      // small pause after submitting tools
+
+            // sequence-based backoff: 500ms → 1000ms → 2000ms → 2000ms → ...
+            var pollingDelays = new[] { 1000, 2000, 3000,4000,5000};
+            int pollIndex = 0;
 
             var threadId = await FetchOrCreateThreadForUser();
 
@@ -262,15 +265,22 @@ namespace HospitalSchedulingApp.Agent.Services
                 "CreateRunAsync",
                 $"agentId={_agent.Id}");
 
+
             while (attempt < maxRetries)
             {
                 attempt++;
                 try
                 {
+                    //int delayMs = baseDelayMs;
                     bool continuePolling;
 
                     do
                     {
+                        var delayMs = pollIndex < pollingDelays.Length
+                            ? pollingDelays[pollIndex]
+                            : pollingDelays.Last(); // cap at 2s
+
+                        pollIndex++;
                         await Task.Delay(delayMs);
 
                         run = await CallAzureApiAsync(

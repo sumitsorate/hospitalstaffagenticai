@@ -1,79 +1,74 @@
 ﻿using Azure.AI.Agents.Persistent;
+using Azure.Core;
 using HospitalSchedulingApp.Agent.Tools.Shift;
-using HospitalSchedulingApp.Common.Enums;
-using HospitalSchedulingApp.Dtos.LeaveRequest.Request;
-using HospitalSchedulingApp.Dtos.Shift.Requests;
+using HospitalSchedulingApp.Common.Exceptions;
+using HospitalSchedulingApp.Common.Extensions;
+using HospitalSchedulingApp.Common.Handlers;
 using HospitalSchedulingApp.Services.AuthServices.Interfaces;
 using HospitalSchedulingApp.Services.Interfaces;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.Shift
-{    
-
-    namespace HospitalSchedulingApp.Agent.Handlers
+{
+    /// <summary>
+    /// ♻️ Handler for unassigning a shift from a staff member.
+    /// </summary>
+    public class UnassignShiftFromStaffToolHandler : BaseToolHandler
     {
-        public class UnassignShiftFromStaffToolHandler : IToolHandler
+        private readonly IPlannedShiftService _plannedShiftService;
+        private readonly IUserContextService _userContextService;
+
+        public UnassignShiftFromStaffToolHandler(
+            IPlannedShiftService plannedShiftService,
+            ILogger<UnassignShiftFromStaffToolHandler> logger,
+            IUserContextService userContextService)
+            : base(logger)
         {
-            private readonly IPlannedShiftService _plannedShiftService;
-            private readonly ILogger<UnassignShiftFromStaffToolHandler> _logger;
-            private readonly IUserContextService _userContextService;
+            _plannedShiftService = plannedShiftService;
+            _userContextService = userContextService;
+        }
 
-            public UnassignShiftFromStaffToolHandler(
-                IPlannedShiftService plannedShiftService,
-                ILogger<UnassignShiftFromStaffToolHandler> logger,
-                IUserContextService userContextService)
+        public override string ToolName => UnassignedShiftFromStaffTool.GetTool().Name;
+
+        public override async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+        {
+            if (!_userContextService.IsScheduler())
             {
-                _plannedShiftService = plannedShiftService;
-                _logger = logger;
-                _userContextService = userContextService;
+                return CreateError(call.Id,
+                    "🚫 You’re not authorized to unassign shifts. Only schedulers can perform this action.");
             }
 
-            public string ToolName => UnassignedShiftFromStaffTool.GetTool().Name;
-
-            public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+            // 🆔 Validate plannedShiftId
+            int? plannedShiftId = root.FetchInt("plannedShiftId");
+            if (plannedShiftId is null || plannedShiftId <= 0)
             {
-                var isScheduler = _userContextService.IsScheduler();
-                if (!isScheduler)
-                {
-                    return CreateError(call.Id, "🚫 You’re not authorized to unassign shifts. Only schedulers can perform this action.");
-                }
-
-                try
-                {
-                    if (!root.TryGetProperty("plannedShiftId", out var shiftIdProp) || !shiftIdProp.TryGetInt32(out var plannedShiftId))
-                        return CreateError(call.Id, "❌ `plannedShiftId` is required and must be a valid integer.");
-
-                    // Unassign the shift
-                    var shiftDto = await _plannedShiftService.UnassignedShiftFromStaffAsync(plannedShiftId);
-                    if (shiftDto == null)
-                        return CreateError(call.Id, $"❌ Could not find or unassign shift with ID {plannedShiftId}.");
-
-                    var response = new
-                    {
-                        success = true,
-                        message = $"♻️ Successfully unassigned {shiftDto.ShiftTypeName} shift on 📅 {shiftDto.ShiftDate:yyyy-MM-dd} (Slot {shiftDto.SlotNumber}) in 🏥 {shiftDto.ShiftDeparmentName}.",
-                        unassignedShift = shiftDto
-                    };
-
-                    string json = JsonSerializer.Serialize(response);
-                    _logger.LogInformation("Shift unassigned successfully: {Json}", json);
-                    return new ToolOutput(call.Id, json);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "❌ Exception occurred while unassigning shift.");
-                    return CreateError(call.Id, "❌ An internal error occurred while unassigning the shift.");
-                }
+                return CreateError(call.Id,
+                    "❌ `plannedShiftId` is required and must be a valid integer.");
             }
 
-            private ToolOutput CreateError(string toolCallId, string message)
+            try
             {
-                var error = new
+                // ♻️ Unassign the shift
+                var shiftDto = await _plannedShiftService.UnassignedShiftFromStaffAsync(plannedShiftId.Value);
+                if (shiftDto == null)
                 {
-                    success = false,
-                    error = message
-                };
-                return new ToolOutput(toolCallId, JsonSerializer.Serialize(error));
+                    return CreateError(call.Id,
+                        $"❌ Could not find or unassign shift with ID {plannedShiftId}.");
+                }
+
+                return CreateSuccess(call.Id,
+                    $"♻️ Successfully unassigned {shiftDto.ShiftTypeName} shift on 📅 {shiftDto.ShiftDate:yyyy-MM-dd} (Slot {shiftDto.SlotNumber}) in 🏥 {shiftDto.ShiftDeparmentName}.",
+                    shiftDto);
+            }
+            catch (BusinessRuleException ex)
+            {
+                return CreateError(call.Id, $"❌ {ex.Message}");
+            }
+            catch (Exception ex)
+            { 
+                return CreateError(call.Id,
+                    "❌ An internal error occurred while unassigning the shift.");
             }
         }
     }

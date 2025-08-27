@@ -1,88 +1,104 @@
-﻿
-using Azure.AI.Agents.Persistent;
-using HospitalSchedulingApp.Agent.MetaResolver;
-using HospitalSchedulingApp.Agent.Tools;
+﻿using Azure.AI.Agents.Persistent;
 using HospitalSchedulingApp.Agent.Tools.Department;
-using HospitalSchedulingApp.Dal.Entities;
-using HospitalSchedulingApp.Dal.Repositories;
+using HospitalSchedulingApp.Common.Exceptions; // ✅ Assuming BusinessRuleException lives here
+using HospitalSchedulingApp.Common.Extensions;
+using HospitalSchedulingApp.Common.Handlers;
 using HospitalSchedulingApp.Services.Interfaces;
 using System.Text.Json;
 
-namespace HospitalSchedulingApp.Agent.Handlers.Department
+namespace HospitalSchedulingApp.Agent.Handlers
 {
-
-    public class ResolveDepartmentInfoToolHandler : IToolHandler
+    /// <summary>
+    /// 🏥 Tool handler for resolving department information by name.
+    /// Uses <see cref="IDepartmentService"/> to fetch matching department details.
+    /// </summary>
+    public class ResolveDepartmentInfoToolHandler : BaseToolHandler
     {
-        private readonly IEntityResolver _entityResolver;
         private readonly IDepartmentService _departmentService;
-        private readonly ILogger<ResolveDepartmentInfoToolHandler> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of <see cref="ResolveDepartmentInfoToolHandler"/>.
+        /// </summary>
+        /// <param name="departmentService">Service for department operations.</param>
+        /// <param name="logger">Logger for structured logging.</param>
         public ResolveDepartmentInfoToolHandler(
-            IEntityResolver entityResolver,
             IDepartmentService departmentService,
             ILogger<ResolveDepartmentInfoToolHandler> logger)
+            : base(logger)
         {
             _departmentService = departmentService;
-            _logger = logger;
-            _entityResolver = entityResolver;
         }
 
-        public string ToolName => ResolveDepartmentInfoTool.GetTool().Name;
+        /// <summary>
+        /// Gets the tool name registered in the agent runtime.
+        /// </summary>
+        public override string ToolName => ResolveDepartmentInfoTool.GetTool().Name;
 
-        public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+        /// <summary>
+        /// Handles a tool call for resolving department info by name.
+        /// </summary>
+        /// <param name="call">Tool call metadata.</param>
+        /// <param name="root">Input JSON payload.</param>
+        /// <returns>Tool output containing department details or error message.</returns>
+        public override async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
-            string inputName = root.TryGetProperty("name", out var nameProp)
-                ? nameProp.GetString()?.Trim() ?? string.Empty
-                : string.Empty;
-
-            if (string.IsNullOrWhiteSpace(inputName))
+            try
             {
-                _logger.LogWarning("resolveDepartmentInfo: No input name provided.");
-                return CreateError(call.Id, "Department name is required.");
-            }
+                // 🔍 Extract and validate department name
+                string inputName = root.FetchString("name")?.Trim() ?? string.Empty;
 
-            if (inputName.Length < 2)
-            {
-                _logger.LogWarning("resolveDepartmentInfo: Input '{Input}' is too short.", inputName);
-                return CreateError(call.Id, "Department name must be at least 2 characters long.");
-            }
-
-            //var department = await _departmentService.FetchDepartmentInformationAsync(inputName);
-            var resolved = await _entityResolver.ResolveEntitiesAsync(inputName);
-
-            if (resolved.Department == null)
-            {
-                _logger.LogInformation("resolveDepartmentInfo: No department found for name '{Name}'", inputName);
-                return CreateError(call.Id, $"No department found matching: {inputName}");
-            }
-
-            var result = new
-            {
-                success = true,
-                department = new
+                if (string.IsNullOrWhiteSpace(inputName))
                 {
-                    resolved.Department.DepartmentId,
-                    resolved.Department.DepartmentName
+                    _logger.LogWarning("resolveDepartmentInfo: Missing input parameter 'name'.");
+                    return CreateError(call.Id, "❌ Department name is required.");
                 }
-            };
 
-            _logger.LogInformation("resolveDepartmentInfo: Matched '{Input}' to Department ID {Id} - {Name}",
-                 inputName, resolved.Department.DepartmentId, resolved.Department.DepartmentName);
+                if (inputName.Length < 2)
+                {
+                    _logger.LogWarning("resolveDepartmentInfo: Input '{Input}' is too short.", inputName);
+                    return CreateError(call.Id, "⚠️ Department name must be at least 2 characters long.");
+                }
 
+                _logger.LogInformation("resolveDepartmentInfo: Resolving department for input '{Input}'...", inputName);
 
-            return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
-        }
+                // 🏥 Resolve department info from service
+                var resolved = await _departmentService.FetchDepartmentInformationAsync(inputName);
 
-        private ToolOutput CreateError(string callId, string message)
-        {
-            var errorJson = JsonSerializer.Serialize(new
+                if (resolved == null)
+                {
+                    _logger.LogInformation("resolveDepartmentInfo: No department found for input '{Input}'", inputName);
+                    return CreateError(call.Id, $"⚠️ No department found matching: {inputName}");
+                }
+
+                // ✅ Build success response
+                var result = new
+                {
+                    success = true,
+                    department = new
+                    {
+                        resolved.DepartmentId,
+                        resolved.DepartmentName
+                    }
+                };
+
+                _logger.LogInformation(
+                    "resolveDepartmentInfo: Successfully matched '{Input}' to Department ID {Id} - {Name}",
+                    inputName, resolved.DepartmentId, resolved.DepartmentName);
+
+                return CreateSuccess(call.Id, "✅ Department resolved successfully.", result);
+            }
+            catch (BusinessRuleException brex)
             {
-                success = false,
-                error = message
-            });
-
-            return new ToolOutput(callId, errorJson);
+                // ⚖️ Business rule violation
+                _logger.LogWarning(brex, "resolveDepartmentInfo: Business rule exception occurred.");
+                return CreateError(call.Id, $"⚠️ {brex.Message}");
+            }
+            catch (Exception ex)
+            {
+                // ❌ Unexpected system failure
+                _logger.LogError(ex, "resolveDepartmentInfo: Unexpected error occurred.");
+                return CreateError(call.Id, "❌ An internal error occurred while resolving department info.");
+            }
         }
     }
-
 }

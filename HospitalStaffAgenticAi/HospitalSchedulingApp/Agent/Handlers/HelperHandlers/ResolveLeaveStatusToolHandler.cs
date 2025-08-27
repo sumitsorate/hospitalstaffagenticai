@@ -1,73 +1,74 @@
 ﻿using Azure.AI.Agents.Persistent;
+using Castle.Core.Logging;
 using HospitalSchedulingApp.Agent.MetaResolver;
 using HospitalSchedulingApp.Agent.Tools.HelperTools;
 using HospitalSchedulingApp.Common.Enums;
-using HospitalSchedulingApp.Dal.Repositories;
+using HospitalSchedulingApp.Common.Extensions;
+using HospitalSchedulingApp.Common.Handlers;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace HospitalSchedulingApp.Agent.Handlers.LeaveRequest
 {
-    public class ResolveLeaveStatusToolHandler : IToolHandler
+    public class ResolveLeaveStatusToolHandler : BaseToolHandler
     {
-        private readonly ILogger<ResolveLeaveStatusToolHandler> _logger;
         private readonly IEntityResolver _entityResolver;
 
         public ResolveLeaveStatusToolHandler(
             IEntityResolver entityResolver,
             ILogger<ResolveLeaveStatusToolHandler> logger)
+            : base(logger) // ✅ BaseToolHandler takes logger
         {
             _entityResolver = entityResolver;
-            _logger = logger;
         }
 
-        public string ToolName => ResolveLeaveStatusTool.GetTool().Name;
+        public override string ToolName => ResolveLeaveStatusTool.GetTool().Name;
 
-        public async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
+        public override async Task<ToolOutput?> HandleAsync(RequiredFunctionToolCall call, JsonElement root)
         {
-            string input = root.TryGetProperty("status", out var statusProp)
-                ? statusProp.GetString()?.Trim() ?? string.Empty
-                : string.Empty;
-
-            if (string.IsNullOrWhiteSpace(input))
+            try
             {
-                _logger.LogWarning("ResolveLeaveStatus: Status input is missing.");
-                return CreateError(call.Id, "Leave status is required.");
-            }
+                string input = root.FetchString("status")?.Trim() ?? string.Empty;
 
-            // Use EntityResolver to parse entities from input phrase
-            var resolveResult = await _entityResolver.ResolveEntitiesAsync(input);
-
-            var leaveStatus = resolveResult.LeaveStatus;
-
-            if (leaveStatus == null)
-            {
-                _logger.LogInformation("ResolveLeaveStatus: No matching leave status found for input '{Input}'", input);
-                return CreateError(call.Id, $"Invalid leave status: '{input}'");
-            }
-
-            var matchedStatusName = leaveStatus.LeaveStatusName;
-            var matchedStatusValue = (int)Enum.Parse(typeof(LeaveRequestStatuses), matchedStatusName);
-
-            var result = new
-            {
-                success = true,
-                match = new
+                if (string.IsNullOrWhiteSpace(input))
                 {
-                    input,
-                    matchedStatus = matchedStatusName,
-                    matchedStatusValue
+                    _logger.LogWarning("ResolveLeaveStatus: Status input is missing.");
+                    return CreateError(call.Id, "Leave status is required.");
                 }
-            };
 
-            _logger.LogInformation("ResolveLeaveStatus: Mapped '{Input}' to '{MatchedStatus}'", input, matchedStatusName);
-            return new ToolOutput(call.Id, JsonSerializer.Serialize(result));
-        }
+                // Use EntityResolver to parse entities from input phrase
+                var resolveResult = await _entityResolver.ResolveEntitiesAsync(input);
+                var leaveStatus = resolveResult.LeaveStatus;
 
-        private ToolOutput CreateError(string callId, string message)
-        {
-            var error = new { success = false, error = message };
-            return new ToolOutput(callId, JsonSerializer.Serialize(error));
+                if (leaveStatus == null)
+                {
+                    _logger.LogInformation("ResolveLeaveStatus: No matching leave status found for input '{Input}'", input);
+                    return CreateError(call.Id, $"Invalid leave status: '{input}'");
+                }
+
+                var matchedStatusName = leaveStatus.LeaveStatusName;
+                var matchedStatusValue = (int)Enum.Parse(typeof(LeaveRequestStatuses), matchedStatusName);
+
+                var result = new
+                {
+                    success = true,
+                    match = new
+                    {
+                        input,
+                        matchedStatus = matchedStatusName,
+                        matchedStatusValue
+                    }
+                };
+
+                _logger.LogInformation("ResolveLeaveStatus: Mapped '{Input}' to '{MatchedStatus}'", input, matchedStatusName);
+
+                return CreateSuccess(call.Id, "✅ Leave status resolved successfully.", result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❗ Error in ResolveLeaveStatusToolHandler");
+                return CreateError(call.Id, "⚠️ An internal error occurred while resolving leave status.");
+            }
         }
     }
 }

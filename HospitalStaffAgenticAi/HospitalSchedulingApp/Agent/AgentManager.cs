@@ -3,6 +3,7 @@ using HospitalSchedulingApp.Agent.AgentStore;
 using HospitalSchedulingApp.Agent.Tools;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Configuration;
 using System;
 using System.IO;
 using System.Net.Http;
@@ -19,8 +20,7 @@ namespace HospitalSchedulingApp.Agent
         private readonly PersistentAgentsClient _client;
         private readonly IConfiguration _config;
         private readonly ILogger<AgentManager> _logger;
-        private readonly IAgentStore _agentStore;
-        private readonly string _agentName;
+        private readonly IAgentStore _agentStore;    
         private string agentId = string.Empty;
 
         /// <summary>
@@ -42,8 +42,6 @@ namespace HospitalSchedulingApp.Agent
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _agentStore = agentStore ?? throw new ArgumentNullException(nameof(agentStore));
 
-            _agentName = _config["AgentName"]
-                ?? throw new ArgumentNullException("AgentName configuration is missing.");
         }
 
         /// <summary>
@@ -96,8 +94,16 @@ namespace HospitalSchedulingApp.Agent
         /// <returns>The active <see cref="PersistentAgent"/> instance.</returns>
         public async Task<PersistentAgent> EnsureAgentExistsAsync()
         {
+            var agentDetails = await _agentStore.FetchAgentInformation();
+            if (agentDetails == null)
+            {
+                _logger.LogError("Agent configuration could not be loaded from storage.");
+                throw new InvalidOperationException("Agent configuration could not be loaded from storage.");
+            }
+
             // Try stored agent ID first
-            agentId = await _agentStore.LoadAgentIdAsync(_agentName) ?? string.Empty;
+            //agentId = await _agentStore.LoadAgentIdAsync() ?? string.Empty;
+            agentId = agentDetails.AssistanceId ?? string.Empty;
 
             if (!string.IsNullOrWhiteSpace(agentId))
             {
@@ -114,36 +120,23 @@ namespace HospitalSchedulingApp.Agent
             }
 
             // Search for existing agent by name
-            _logger.LogInformation("Searching for agent with name: {AgentName}", _agentName);
+            _logger.LogInformation("Searching for agent with name: {AgentName}", agentDetails.Name);
 
             await foreach (var agent in _client.Administration.GetAgentsAsync())
             {
-                if (string.Equals(agent.Name, _agentName, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(agent.Name, agentDetails.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     agentId = agent.Id;
                     _logger.LogInformation("Found existing agent with ID: {AgentId}", agentId);
-                    await _agentStore.SaveAgentIdAsync(_agentName, agentId);
+                    await _agentStore.SaveAgentIdAsync(agentDetails.Name, agentId);
                     return agent;
                 }
-            }
-
-            // Create a new agent
-            string systemPromptPath = Path.Combine("SystemPrompt", "SystemPrompt2.txt");
-
-            if (!File.Exists(systemPromptPath))
-            {
-                _logger.LogError("System prompt file not found at: {Path}", systemPromptPath);
-                throw new FileNotFoundException($"System prompt file not found at: {systemPromptPath}");
-            }
-
-            string instructions = await File.ReadAllTextAsync(systemPromptPath);
-            string modelDeployment = _config["ModelDeploymentName"]
-                ?? throw new ArgumentNullException("ModelDeploymentName configuration is missing.");
+            }     
 
             var newAgentResponse = await _client.Administration.CreateAgentAsync(
-                model: modelDeployment,
-                name: _agentName,
-                instructions: instructions,
+                model: agentDetails.ModelDeploymentName,
+                name: agentDetails.Name,
+                instructions: agentDetails.Instructions,
                 tools: ToolDefinitions.All
             );
 
@@ -153,7 +146,7 @@ namespace HospitalSchedulingApp.Agent
             agentId = newAgent.Id;
             _logger.LogInformation("Created new agent with ID: {AgentId}", agentId);
 
-            await _agentStore.SaveAgentIdAsync(_agentName, agentId);
+            await _agentStore.SaveAgentIdAsync(agentDetails.Name, agentId);
 
             return newAgent;
         }

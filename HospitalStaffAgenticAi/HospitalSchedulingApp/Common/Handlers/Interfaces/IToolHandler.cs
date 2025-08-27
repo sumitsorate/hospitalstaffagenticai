@@ -1,7 +1,7 @@
 ﻿using Azure.AI.Agents.Persistent;
 using System.Text.Json;
 
-namespace HospitalSchedulingApp.Agent.Handlers
+namespace HospitalSchedulingApp.Common.Handlers.Interfaces
 {
     /// <summary>
     /// Defines a common interface for tool handlers used by the agent.

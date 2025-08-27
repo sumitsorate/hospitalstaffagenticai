@@ -39,6 +39,5 @@ namespace HospitalSchedulingApp.Services.Helpers
                 .FirstOrDefault(s =>
                     s.ShiftTypeName.Contains(shiftTypePart, StringComparison.OrdinalIgnoreCase));
         }
-
     }
 }
